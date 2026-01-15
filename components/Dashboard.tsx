@@ -1,0 +1,115 @@
+
+import React from 'react';
+import { UserStats, Subject } from '../types';
+
+interface DashboardProps {
+  stats: UserStats;
+  onBack: () => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ stats, onBack }) => {
+  const accuracy = stats.totalAnswered > 0 
+    ? Math.round((stats.correctCount / stats.totalAnswered) * 100) 
+    : 0;
+
+  const sortedSubjectStats = Object.entries(stats.subjectStats)
+    .sort((a, b) => (b[1].correct / b[1].total) - (a[1].correct / a[1].total));
+
+  return (
+    <div className="max-w-6xl mx-auto px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <header className="flex justify-between items-center mb-16">
+        <div>
+          <h2 className="text-6xl font-black text-slate-900 tracking-tighter mb-4">學習數據總覽</h2>
+          <p className="text-slate-500 text-lg font-medium uppercase tracking-[0.2em]">Personal Legal Performance Analysis</p>
+        </div>
+        <button 
+          onClick={onBack}
+          className="bg-slate-900 text-white px-10 py-5 rounded-full font-black text-xs tracking-widest hover:bg-indigo-600 transition-all shadow-xl active:scale-95"
+        >
+          回到戰略中心 →
+        </button>
+      </header>
+
+      <div className="grid lg:grid-cols-4 gap-8 mb-16">
+        <div className="bg-white p-10 rounded-[4rem] border-2 border-slate-50 shadow-xl flex flex-col items-center justify-center text-center">
+          <div className="text-indigo-600 text-7xl font-black mb-4 tabular-nums">{stats.totalAnswered}</div>
+          <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">總答題數</div>
+        </div>
+        <div className="bg-white p-10 rounded-[4rem] border-2 border-slate-50 shadow-xl flex flex-col items-center justify-center text-center">
+          <div className="text-indigo-600 text-7xl font-black mb-4 tabular-nums">{accuracy}%</div>
+          <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">平均正確率</div>
+        </div>
+        <div className="bg-indigo-900 p-10 rounded-[4rem] shadow-2xl flex flex-col items-center justify-center text-center text-white">
+          <div className="text-amber-400 text-7xl font-black mb-4 tabular-nums">{stats.dailyStreak}</div>
+          <div className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.4em]">連續學習天數</div>
+        </div>
+        <div className="bg-white p-10 rounded-[4rem] border-2 border-slate-50 shadow-xl flex flex-col items-center justify-center text-center">
+          <div className="text-indigo-600 text-7xl font-black mb-4 tabular-nums">{stats.maxStreak}</div>
+          <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">最高連續答對</div>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-12">
+        <section className="bg-white p-16 rounded-[5rem] border-2 border-slate-50 shadow-2xl">
+          <h3 className="text-2xl font-black text-slate-900 mb-12 flex items-center">
+            <span className="mr-4 text-3xl">⚖️</span> 各科正確率分佈
+          </h3>
+          <div className="space-y-10">
+            {Object.values(Subject).map((sub) => {
+              const s = stats.subjectStats[sub] || { total: 0, correct: 0 };
+              const subAcc = s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0;
+              return (
+                <div key={sub} className="group">
+                  <div className="flex justify-between items-end mb-4 px-2">
+                    <span className="font-black text-slate-800 text-sm tracking-tight">{sub}</span>
+                    <span className="font-mono text-xs text-slate-400">{s.correct} / {s.total}</span>
+                  </div>
+                  <div className="h-4 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                    <div 
+                      className="h-full bg-indigo-600 transition-all duration-1000 group-hover:bg-indigo-400" 
+                      style={{ width: `${subAcc}%` }}
+                    ></div>
+                  </div>
+                  <div className="mt-2 text-right">
+                    <span className="text-[10px] font-black text-indigo-600 tracking-widest">{subAcc}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="space-y-12">
+          <div className="bg-slate-900 p-16 rounded-[5rem] text-white shadow-4xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-12 text-indigo-500 opacity-20 text-9xl font-black">📈</div>
+            <h3 className="text-2xl font-black mb-10 relative z-10">最近測驗趨勢</h3>
+            <div className="space-y-8 relative z-10">
+              {stats.history.length === 0 && <p className="text-indigo-300 font-bold opacity-60">尚無測驗紀錄，開始您的第一場練習吧！</p>}
+              {stats.history.slice(-5).reverse().map((h, i) => (
+                <div key={i} className="flex justify-between items-center p-6 bg-slate-800 rounded-3xl border border-slate-700 hover:border-indigo-400 transition-all group">
+                  <div>
+                    <div className="text-xs font-black text-indigo-400 mb-1 uppercase tracking-widest">{h.category}</div>
+                    <div className="text-[10px] text-slate-500 font-black">{new Date(h.date).toLocaleDateString()}</div>
+                  </div>
+                  <div className="text-3xl font-black text-white tabular-nums group-hover:text-indigo-400 transition-colors">
+                    {h.score}<span className="text-[10px] text-slate-500 ml-1">/ {h.totalPossible}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-indigo-50 p-16 rounded-[5rem] border-2 border-indigo-100 shadow-xl">
+            <h3 className="text-2xl font-black text-indigo-900 mb-8">導師分析</h3>
+            <p className="text-lg font-bold leading-relaxed text-indigo-700">
+              {accuracy > 80 ? '您的法律邏輯非常扎實，建議開始挑戰全真模擬試卷以維持題感。' : 
+               accuracy > 60 ? '表現穩健，但特定學說見解仍有強化空間，建議針對正確率低於 70% 的科目進行專科練習。' : 
+               stats.totalAnswered > 0 ? '目前法感尚在磨練中，建議先從基礎條文下手，並多看專家解析中的法源依據。' : 
+               '歡迎來到考題專家系統，我們準備好與您一起征服律師國考。'}
+            </p>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+};
