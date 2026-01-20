@@ -20,6 +20,44 @@ const INITIAL_STATS: UserStats = {
 
 export default function App() {
   const [bank, setBank] = useState<any[]>([]);
+    // ✅ App 啟動時：讀取 public/bank/manifest.json，並把 files 逐一抓回來
+  useEffect(() => {
+    const loadBankFromPublic = async () => {
+      try {
+        const manifestRes = await fetch("/bank/manifest.json");
+        if (!manifestRes.ok) throw new Error("manifest_not_found");
+        const manifest = await manifestRes.json();
+
+        const files: string[] = manifest.files || [];
+        if (!files.length) {
+          console.warn("manifest has no files");
+          setBank([]);
+          return;
+        }
+
+        const all = await Promise.all(
+          files.map(async (f) => {
+            const r = await fetch(`/bank/${f}`);
+            if (!r.ok) throw new Error(`file_not_found:${f}`);
+            return r.json();
+          })
+        );
+
+        // 你的 json 可能是「單題」或「多題陣列」：這裡做 flatten
+        const flattened = all.flatMap((x: any) => Array.isArray(x) ? x : [x]);
+
+        setBank(flattened);
+        console.log("bank loaded:", flattened.length);
+      } catch (e) {
+        console.error("Failed to load bank:", e);
+        setBank([]);
+        alert("題庫載入失敗：請確認 public/bank/manifest.json 與題庫檔案已上傳。");
+      }
+    };
+
+    loadBankFromPublic();
+  }, []);
+
   const [correctMap, setCorrectMap] = useState<Record<string, string[]>>({});
   const [feedback, setFeedback] = useState<'NONE' | 'CORRECT' | 'WRONG'>('NONE');
   const [explanation, setExplanation] = useState<string>('');
