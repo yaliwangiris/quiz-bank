@@ -1,0 +1,535 @@
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Subject, Category, Question, QuizState, UserStats, SESSION_METADATA } from './types';
+import { GeminiService } from './geminiService';
+import { triggerFireworks, CryingCat } from './components/Fireworks';
+import { MemoSection } from './components/MemoSection';
+import { Dashboard } from './components/Dashboard';
+
+const gemini = new GeminiService();
+
+const INITIAL_STATS: UserStats = { 
+  totalAnswered: 0, 
+  correctCount: 0, 
+  currentStreak: 0, 
+  maxStreak: 0, 
+  dailyStreak: 0, 
+  subjectStats: {}, 
+  history: [] 
+};
+
+export default function App() {
+  const [bank, setBank] = useState<any[]>([]);
+    // ✅ App 啟動時：讀取 public/bank/manifest.json，並把 files 逐一抓回來
+  useEffect(() => {
+    const loadBankFromPublic = async () => {
+      try {
+        const manifestRes = await fetch("/bank/manifest.json");
+        if (!manifestRes.ok) throw new Error("manifest_not_found");
+        const manifest = await manifestRes.json();
+
+        const files: string[] = manifest.files || [];
+        if (!files.length) {
+          console.warn("manifest has no files");
+          setBank([]);
+          return;
+        }
+
+        const all = await Promise.all(
+          files.map(async (f) => {
+            const r = await fetch(`/bank/${f}`);
+            if (!r.ok) throw new Error(`file_not_found:${f}`);
+            return r.json();
+          })
+        );
+
+        // 你的 json 可能是「單題」或「多題陣列」：這裡做 flatten
+        const flattened = all.flatMap((x: any) => Array.isArray(x) ? x : [x]);
+
+        setBank(flattened);
+        console.log("bank loaded:", flattened.length);
+      } catch (e) {
+        console.error("Failed to load bank:", e);
+        setBank([]);
+        alert("題庫載入失敗：請確認 public/bank/manifest.json 與題庫檔案已上傳。");
+      }
+    };
+
+    loadBankFromPublic();
+  }, []);
+
+  const [correctMap, setCorrectMap] = useState<Record<string, string[]>>({});
+  const [feedback, setFeedback] = useState<'NONE' | 'CORRECT' | 'WRONG'>('NONE');
+  const [explanation, setExplanation] = useState<string>('');
+  const [loadingAction, setLoadingAction] = useState(false);
+  const [currentCorrectIds, setCurrentCorrectIds] = useState<string[]>([]);
+
+  const [searchYear, setSearchYear] = useState('108');
+  const [searchCode, setSearchCode] = useState('1301');
+  const [searchNo, setSearchNo] = useState('5');
+  const [searchId, setSearchId] = useState('108-1301-005');
+
+  const [state, setState] = useState<QuizState>(() => {
+    const savedMemos = localStorage.getItem('law_quiz_memos');
+    const savedStats = localStorage.getItem('law_quiz_stats');
+    let stats: UserStats = savedStats ? JSON.parse(savedStats) : INITIAL_STATS;
+
+    const today = new Date().setHours(0, 0, 0, 0);
+    const lastActive = stats.lastActiveDate ? new Date(stats.lastActiveDate).setHours(0, 0, 0, 0) : null;
+    
+    if (lastActive) {
+      const diff = (today - lastActive) / (1000 * 60 * 60 * 24);
+      if (diff === 1) stats.dailyStreak += 1;
+      else if (diff > 1) stats.dailyStreak = 1;
+    } else {
+      stats.dailyStreak = 1;
+    }
+    stats.lastActiveDate = Date.now();
+
+    return {
+      mode: 'IDLE',
+      questions: [],
+      currentIndex: 0,
+      score: 0,
+      answers: {},
+      memos: savedMemos ? JSON.parse(savedMemos) : {},
+      status: 'IDLE',
+      stats,
+    };
+  });
+
+  const handleUploadBankFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setLoadingAction(true);
+    try {
+      let merged: any[] = [];
+      for (const file of files) {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        const arr = Array.isArray(json) ? json : (Array.isArray(json.questions) ? json.questions : []);
+        merged = merged.concat(arr);
+      }
+      setBank(merged);
+      gemini.setBank(merged);
+      alert(`✅ 成功載入題庫，共計 ${merged.length} 題。`);
+    } catch (err) {
+      alert("讀取失敗，請檢查 JSON 格式。");
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const forceResetToHome = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setFeedback('NONE');
+    setExplanation('');
+    setLoadingAction(false);
+    setCurrentCorrectIds([]);
+    setCorrectMap({});
+    
+    setState(prev => ({
+      ...prev,
+      status: 'IDLE',
+      mode: 'IDLE',
+      questions: [],
+      currentIndex: 0,
+      score: 0,
+      answers: {},
+      category: undefined,
+      summaryText: undefined
+    }));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('law_quiz_memos', JSON.stringify(state.memos));
+    localStorage.setItem('law_quiz_stats', JSON.stringify(state.stats));
+  }, [state.memos, state.stats]);
+
+  const handleExit = () => {
+    if (window.confirm('確定要結束目前的測驗並返回首頁嗎？')) {
+      forceResetToHome();
+    }
+  };
+
+  const handleRetrieveQuestion = async (byId: boolean = false) => {
+    setState(prev => ({ ...prev, status: 'LOADING' }));
+    try {
+      const q = byId 
+        ? await gemini.retrieveByQuestionId(searchId)
+        : await gemini.retrieveSpecificQuestion(searchYear, searchCode, searchNo);
+
+      if (q) {
+        setCorrectMap({});
+        setState(prev => ({
+          ...prev,
+          questions: [q],
+          status: 'QUIZ',
+          currentIndex: 0,
+          score: 0,
+          answers: {},
+          mode: 'SUBJECT_PRACTICE'
+        }));
+      } else {
+        alert("找不到指定真題，請確認 ID 或年度/代碼/題號是否正確。");
+        forceResetToHome();
+      }
+    } catch (err) {
+      alert("檢索失敗。");
+      forceResetToHome();
+    }
+  };
+
+  const startPractice = async (subject: Subject) => {
+    setState(prev => ({ ...prev, status: 'LOADING', mode: 'SUBJECT_PRACTICE' }));
+    try {
+      const qs = await gemini.fetchQuestions('SUBJECT', subject);
+      if (!qs.length) {
+        alert("目前題庫中無此科目的題目。");
+        forceResetToHome();
+        return;
+      }
+      setState(prev => ({ ...prev, questions: qs, status: 'QUIZ', currentIndex: 0, score: 0, answers: {} }));
+    } catch (err) {
+      alert("載入失敗。");
+      forceResetToHome();
+    }
+  };
+
+  const startMockExam = async (cat: Category) => {
+    setState(prev => ({ ...prev, status: 'LOADING', mode: 'MOCK_EXAM', category: cat }));
+    try {
+      const qs = await gemini.fetchQuestions('MOCK', cat);
+      if (!qs.length) {
+        alert("題庫內容不足以生成模擬考。");
+        forceResetToHome();
+        return;
+      }
+      setState(prev => ({ ...prev, questions: qs, status: 'QUIZ', currentIndex: 0, score: 0, answers: {} }));
+    } catch (err) {
+      alert("生成失敗。");
+      forceResetToHome();
+    }
+  };
+
+  const handleSelectOption = async (optionId: string) => {
+    const currentQ = state.questions[state.currentIndex];
+    if (!currentQ || state.answers[currentQ.id] || loadingAction) return;
+
+    setLoadingAction(true);
+    try {
+      const result = await gemini.gradeAnswer(currentQ, optionId);
+      setCurrentCorrectIds(result.correctChoiceIds);
+      setExplanation(result.explanation);
+      setFeedback(result.isCorrect ? 'CORRECT' : 'WRONG');
+      setCorrectMap(prev => ({ ...prev, [currentQ.id]: result.correctChoiceIds }));
+
+      if (result.isCorrect) triggerFireworks();
+
+      setState(prev => {
+        const subStat = prev.stats.subjectStats[currentQ.subject] || { total: 0, correct: 0 };
+        return {
+          ...prev,
+          answers: { ...prev.answers, [currentQ.id]: optionId },
+          score: result.isCorrect ? prev.score + currentQ.weight : prev.score,
+          stats: {
+            ...prev.stats,
+            totalAnswered: prev.stats.totalAnswered + 1,
+            correctCount: prev.stats.correctCount + (result.isCorrect ? 1 : 0),
+            currentStreak: result.isCorrect ? prev.stats.currentStreak + 1 : 0,
+            maxStreak: Math.max(prev.stats.maxStreak, result.isCorrect ? prev.stats.currentStreak + 1 : 0),
+            subjectStats: {
+              ...prev.stats.subjectStats,
+              [currentQ.subject]: { total: subStat.total + 1, correct: subStat.correct + (result.isCorrect ? 1 : 0) }
+            }
+          }
+        };
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+  const finishQuiz = async () => {
+    setState(prev => ({ ...prev, status: 'LOADING' }));
+    const totalPossible = state.questions.reduce((acc, q) => acc + q.weight, 0);
+    
+    const summary = await gemini.getExamSummary(state.questions.map(q => ({
+      id: q.id,
+      isCorrect: (correctMap[q.id] || []).includes(state.answers[q.id]),
+      subject: q.subject
+    })));
+
+    setState(prev => ({
+      ...prev,
+      status: 'RESULT',
+      summaryText: summary,
+      stats: {
+        ...prev.stats,
+        history: [...prev.stats.history, { 
+          date: Date.now(), 
+          score: state.score, 
+          totalPossible,
+          category: prev.mode === 'MOCK_EXAM' ? prev.category! : '專科強化'
+        }]
+      }
+    }));
+  };
+
+  const nextQuestion = () => {
+    setFeedback('NONE');
+    setExplanation('');
+    setCurrentCorrectIds([]);
+    if (state.currentIndex < state.questions.length - 1) {
+      setState(prev => ({ ...prev, currentIndex: prev.currentIndex + 1 }));
+    } else {
+      finishQuiz();
+    }
+  };
+
+  if (state.status === 'LOADING') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-8">
+        <div className="w-24 h-24 border-[12px] border-slate-200 border-t-indigo-600 rounded-full animate-spin mb-10 shadow-xl"></div>
+        <p className="text-indigo-900 font-black text-2xl tracking-[0.3em] uppercase animate-pulse">律師專家諮詢中...</p>
+      </div>
+    );
+  }
+
+  if (state.status === 'DASHBOARD') return <Dashboard stats={state.stats} onBack={forceResetToHome} />;
+
+  if (state.status === 'IDLE') {
+    return (
+      <div className="max-w-6xl mx-auto px-6 py-16 animate-in fade-in duration-700">
+        <header className="text-center mb-16 relative">
+          <button onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))} className="absolute top-0 right-0 p-4 bg-white rounded-3xl border shadow-lg hover:scale-105 transition-all group">
+            <span className="text-2xl">📊</span>
+            <span className="text-[10px] font-black uppercase ml-2 text-slate-400 group-hover:text-indigo-600">戰力分析</span>
+          </button>
+          <h1 className="text-9xl font-black text-slate-900 mb-10 tracking-tighter leading-none">律師一試<br/><span className="text-indigo-600">考題專家</span></h1>
+          <div className="mt-12 max-w-3xl mx-auto bg-white border-2 rounded-[3rem] p-10 shadow-xl border-indigo-100">
+            <div className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-4">資料中心庫入</div>
+            <input type="file" accept="application/json" multiple onChange={handleUploadBankFiles} className="block w-full text-sm file:mr-6 file:py-3 file:px-6 file:rounded-full file:bg-slate-900 file:text-white" />
+            <div className="mt-4 text-[10px] text-slate-400 font-bold uppercase">目前庫存題目: {bank.length} 題</div>
+          </div>
+        </header>
+
+        <div className="grid lg:grid-cols-3 gap-16">
+          <div className="lg:col-span-2 space-y-16">
+            <section className="bg-slate-900 rounded-[5rem] p-16 text-white shadow-4xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-12 text-indigo-500 opacity-10 text-9xl font-black">⚖️</div>
+              <h2 className="text-xl font-black mb-12 flex items-center">
+                <span className="w-3 h-3 rounded-full bg-indigo-500 mr-4"></span>
+                真題精確檢索系統
+              </h2>
+              
+              <div className="mb-12 p-8 bg-slate-800 rounded-3xl border border-slate-700">
+                <label className="text-[10px] font-black text-indigo-400 uppercase mb-4 block">按 Question ID 搜尋</label>
+                <div className="flex gap-4">
+                  <input type="text" value={searchId} onChange={e => setSearchId(e.target.value)} placeholder="例如: 108-1301-005" className="flex-1 bg-slate-800 border-2 border-slate-700 rounded-3xl p-5 text-xl font-black focus:border-indigo-500 outline-none" />
+                  <button onClick={() => handleRetrieveQuestion(true)} className="bg-indigo-600 px-10 rounded-3xl font-black hover:bg-indigo-500 transition-all active:scale-95">檢索</button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mb-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase">年度</label>
+                  <input type="text" value={searchYear} onChange={e => setSearchYear(e.target.value)} placeholder="108" className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-center font-black" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase">科目代碼</label>
+                  <input type="text" value={searchCode} onChange={e => setSearchCode(e.target.value)} placeholder="1301" className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-center font-black" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase">題號</label>
+                  <input type="text" value={searchNo} onChange={e => setSearchNo(e.target.value)} placeholder="5" className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-center font-black" />
+                </div>
+              </div>
+              <button onClick={() => handleRetrieveQuestion(false)} className="w-full bg-slate-700 py-6 rounded-3xl font-black text-lg border-2 border-indigo-900/50 hover:bg-indigo-900 transition-all active:scale-95">由 Metadata 定位題目</button>
+            </section>
+
+            <div className="space-y-10">
+              <h2 className="text-xl font-black text-slate-900 uppercase tracking-widest border-b-4 border-slate-100 pb-4">全真模擬測驗</h2>
+              <div className="grid md:grid-cols-2 gap-10">
+                {Object.keys(Category).map(key => {
+                   const cat = Category[key as keyof typeof Category];
+                   return (
+                    <button key={cat} onClick={() => startMockExam(cat)} className="bg-white border-2 border-slate-100 p-14 rounded-[5rem] text-left hover:border-indigo-600 transition-all shadow-xl hover:shadow-4xl group">
+                      <h3 className="text-2xl font-black mb-6 group-hover:text-indigo-600 transition-colors">{cat}</h3>
+                      <div className="text-[10px] font-bold bg-slate-100 text-slate-400 px-4 py-1.5 rounded-full inline-block uppercase tracking-widest">300 Points Mock</div>
+                    </button>
+                   );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <aside className="space-y-12">
+            <div className="bg-slate-900 rounded-[5rem] p-16 text-white shadow-4xl relative overflow-hidden group">
+              <h3 className="text-2xl font-black mb-12 flex items-center">🎯 專科擊破</h3>
+              <div className="flex flex-wrap gap-3">
+                {Object.values(Subject).map(sub => (
+                  <button key={sub} onClick={() => startPractice(sub)} className="px-5 py-3 bg-slate-800 border border-slate-700 rounded-2xl text-[11px] font-black hover:bg-indigo-500 hover:border-indigo-400 transition-all">{sub}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-indigo-600 rounded-[5rem] p-16 text-white shadow-4xl relative overflow-hidden group cursor-pointer" onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))}>
+              <h3 className="text-2xl font-black mb-4">數據總結</h3>
+              <p className="text-indigo-100 font-bold mb-8">分析各科目正確率，定位學習弱點。</p>
+              <div className="bg-white/20 px-8 py-3 rounded-full inline-block font-black text-[10px] tracking-widest uppercase">Go to Dashboard</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.status === 'QUIZ') {
+    const currentQ = state.questions[state.currentIndex];
+    if (!currentQ) return null;
+    const answered = !!state.answers[currentQ.id];
+
+    return (
+      <div className="max-w-5xl mx-auto px-6 py-16 pb-48 animate-in fade-in duration-500">
+        <nav className="flex justify-between items-center mb-16">
+          <button onClick={handleExit} className="group flex items-center space-x-4 text-slate-900 font-black px-10 py-5 rounded-full bg-white border-2 border-slate-100 shadow-xl hover:text-rose-600 transition-all active:scale-95">
+            <span className="text-2xl">✕</span>
+            <span className="text-xs tracking-widest">返回主畫面</span>
+          </button>
+          <div className="px-10 py-5 rounded-full bg-slate-900 text-white font-black text-xs uppercase tracking-widest shadow-2xl">
+            {state.currentIndex + 1} / {state.questions.length}
+          </div>
+        </nav>
+
+        <article className="bg-white rounded-[6rem] p-20 shadow-4xl border-2 border-slate-50 relative mb-16 overflow-hidden">
+          <div className="absolute top-0 left-0 px-16 py-8 bg-slate-900 text-white font-black rounded-br-[4rem] text-sm tracking-widest uppercase shadow-2xl">
+            真題：民國 {currentQ.year} 年度 第 {currentQ.question_no} 題
+          </div>
+
+          <div className="mt-24 mb-12 flex items-center space-x-6">
+            <div className="h-1 w-12 bg-indigo-600 rounded-full"></div>
+            <span className="text-indigo-600 font-black uppercase tracking-widest">{currentQ.subject} (代碼: {currentQ.subject_code})</span>
+          </div>
+
+          <h2 className="text-4xl text-slate-800 font-bold leading-[1.8] mb-20 tracking-tight">{currentQ.content}</h2>
+          
+          <div className="grid gap-8">
+            {currentQ.options.map((opt) => {
+              const isSelected = state.answers[currentQ.id] === opt.id;
+              const isCorrect = currentCorrectIds.includes(opt.id);
+              let cls = "w-full text-left p-12 rounded-[3.5rem] border-4 transition-all flex items-start group shadow-lg ";
+              if (!answered) cls += "bg-slate-50 border-slate-50 hover:border-indigo-600 hover:bg-white active:scale-[0.98]";
+              else if (isCorrect) cls += "border-emerald-500 bg-emerald-50 text-emerald-900 ring-[16px] ring-emerald-500/10";
+              else if (isSelected) cls += "border-rose-500 bg-rose-50 text-rose-900 opacity-90";
+              else cls += "bg-slate-50 border-slate-50 opacity-40";
+
+              return (
+                <button key={opt.id} disabled={answered || loadingAction} onClick={() => handleSelectOption(opt.id)} className={cls}>
+                  <div className={`flex-shrink-0 w-16 h-16 rounded-3xl flex items-center justify-center mr-10 text-3xl font-black transition-all ${answered && isCorrect ? 'bg-emerald-500 text-white' : 'bg-white shadow group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                    {opt.label}
+                  </div>
+                  <span className="font-bold text-2xl leading-relaxed pt-3">{opt.content}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {feedback !== 'NONE' && (
+            <div className="mt-24 pt-20 border-t-2 border-slate-50 flex justify-center animate-in zoom-in duration-500">
+              {feedback === 'CORRECT' ? (
+                <div className="text-5xl font-black text-emerald-600 flex items-center tracking-tighter">
+                  <span className="text-7xl mr-8">🏛️</span> 邏輯嚴密・精確命中
+                </div>
+              ) : <CryingCat />}
+            </div>
+          )}
+        </article>
+
+        {(answered || loadingAction) && (
+          <section className="space-y-16 animate-in slide-in-from-bottom-10 duration-700">
+            <div className="bg-white rounded-[6rem] p-24 shadow-5xl border-2 border-slate-100 relative overflow-hidden">
+              <div className="absolute -right-32 -bottom-32 w-96 h-96 bg-indigo-50 rounded-full opacity-30"></div>
+              <h3 className="text-5xl font-black mb-16 relative z-10 flex items-center tracking-tighter">
+                 <span className="mr-8 text-6xl text-indigo-600">📖</span> 專家判析精要
+              </h3>
+              
+              {loadingAction ? (
+                <div className="py-24 text-center">
+                  <div className="inline-block w-12 h-12 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin mb-6"></div>
+                  <div className="text-indigo-900 font-black text-3xl animate-pulse tracking-widest uppercase">法律資料庫分析中...</div>
+                </div>
+              ) : (
+                <div className="space-y-16 relative z-10">
+                  <div className="text-slate-800 leading-[2.6] text-3xl font-bold bg-slate-50/50 p-20 rounded-[4rem] border-2 border-slate-50 shadow-inner whitespace-pre-wrap">
+                    {explanation || "專家正在審理此題爭點..."}
+                  </div>
+                  
+                  <MemoSection 
+                    initialMemo={state.memos[currentQ.id]} 
+                    onSave={(m) => setState(p => ({ ...p, memos: { ...p.memos, [currentQ.id]: m } }))}
+                    onDelete={() => setState(p => { const n = { ...p.memos }; delete n[currentQ.id]; return { ...p, memos: n }; })}
+                  />
+                </div>
+              )}
+            </div>
+
+            <button 
+              onClick={nextQuestion} 
+              className="w-full bg-slate-900 text-white py-14 rounded-[5rem] font-black text-5xl hover:bg-indigo-600 transition-all shadow-5xl active:scale-[0.98] tracking-widest uppercase"
+            >
+              {state.currentIndex < state.questions.length - 1 ? '下一題任務 →' : '產出戰略總結'}
+            </button>
+          </section>
+        )}
+      </div>
+    );
+  }
+
+  if (state.status === 'RESULT') {
+    const totalPossible = state.questions.reduce((acc, q) => acc + q.weight, 0);
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-10 animate-in zoom-in duration-700">
+        <div className="max-w-5xl w-full bg-white rounded-[8rem] p-24 shadow-5xl text-center border-2 border-slate-100 relative overflow-hidden">
+          <div className="text-[14rem] mb-12">🎓</div>
+          <h2 className="text-8xl font-black text-slate-900 mb-12 tracking-tighter uppercase">階段測驗總結</h2>
+          
+          <div className="grid lg:grid-cols-2 gap-12 mb-20">
+            <div className="bg-slate-50 p-20 rounded-[6rem] border-2 border-slate-100 shadow-inner">
+              <div className="text-[15rem] font-black text-indigo-600 leading-none mb-6 tabular-nums">{state.score}</div>
+              <div className="text-[12px] text-slate-400 font-black uppercase tracking-[0.8em]">FINAL SCORE / {totalPossible}</div>
+            </div>
+            
+            <div className="bg-indigo-900 p-20 rounded-[6rem] text-left text-white shadow-4xl relative overflow-hidden">
+              <div className="absolute bottom-0 right-0 p-10 text-indigo-800 opacity-40 text-8xl font-black">⚖️</div>
+              <h4 className="text-[12px] font-black uppercase tracking-[0.5em] mb-10 opacity-60">專家綜合診斷報告</h4>
+              <p className="text-2xl font-bold leading-[2] text-indigo-50 relative z-10">
+                {state.summaryText}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8">
+            <button 
+              onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))} 
+              className="bg-white border-2 border-slate-100 text-slate-900 py-10 rounded-[4rem] font-black text-2xl hover:bg-slate-50 transition-all active:scale-[0.98] shadow-xl tracking-widest uppercase"
+            >
+              檢視數據趨勢
+            </button>
+            <button 
+              onClick={forceResetToHome} 
+              className="bg-slate-900 text-white py-10 rounded-[4rem] font-black text-2xl hover:bg-indigo-600 transition-all active:scale-[0.98] shadow-5xl tracking-widest uppercase"
+            >
+              回到戰略中心
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
