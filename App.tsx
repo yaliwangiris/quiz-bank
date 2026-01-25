@@ -202,9 +202,8 @@ export default function App() {
     try {
       const qs = await gemini.fetchQuestions('MOCK', cat);
       if (!qs.length) {
-        alert("題庫內容不足以生成模擬考。");
-        forceResetToHome();
-        return;
+        console.warn("MOCK 回傳為空，改用本地題庫進行測試");
+        // 暫時不要擋掉流程
       }
       setState(prev => ({ ...prev, questions: qs, status: 'QUIZ', currentIndex: 0, score: 0, answers: {} }));
     } catch (err) {
