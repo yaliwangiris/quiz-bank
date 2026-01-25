@@ -24,7 +24,7 @@ export default function App() {
   useEffect(() => {
     const loadBankFromPublic = async () => {
       try {
-        const manifestRes = await fetch("/bank/manifest.json");
+        const manifestRes = await fetch(`${import.meta.env.BASE_URL}bank/manifest.json`);
         if (!manifestRes.ok) throw new Error("manifest_not_found");
         const manifest = await manifestRes.json();
 
@@ -37,7 +37,7 @@ export default function App() {
 
         const all = await Promise.all(
           files.map(async (f) => {
-            const r = await fetch(`/bank/${f}`);
+            const r = await fetch(`${import.meta.env.BASE_URL}bank/${f}`);
             if (!r.ok) throw new Error(`file_not_found:${f}`);
             return r.json();
           })
