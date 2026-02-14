@@ -152,7 +152,55 @@ export default function App() {
       forceResetToHome();
     }
   };
+    // ✅ Load bank from GitHub Pages (public/bank -> dist/bank)
+  useEffect(() => {
+    const loadBank = async () => {
+      try {
+        const base = import.meta.env.BASE_URL || "/"; // should be "/quiz-bank/"
+        const manifestUrl = `${base}bank/manifest.json`;
 
+        console.log("[bank] loading manifest:", manifestUrl);
+
+        const mRes = await fetch(manifestUrl, { cache: "no-store" });
+        if (!mRes.ok) {
+          throw new Error(`manifest fetch failed: ${mRes.status} ${mRes.statusText}`);
+        }
+
+        const manifest = await mRes.json();
+        const files: string[] = Array.isArray(manifest?.files) ? manifest.files : [];
+
+        if (!files.length) {
+          throw new Error("manifest has no files[]");
+        }
+
+        console.log("[bank] files:", files.length);
+
+        // fetch all json files (you can batch if huge; keep simple first)
+        const all = await Promise.all(
+          files.map(async (f) => {
+            const url = `${base}bank/${f}`;
+            const r = await fetch(url, { cache: "no-store" });
+            if (!r.ok) throw new Error(`bank file fetch failed: ${f} (${r.status})`);
+            return r.json();
+          })
+        );
+
+        // each file could be an array or object; normalize to array
+        const merged = all.flatMap((x) => (Array.isArray(x) ? x : (x?.questions ? x.questions : [x])));
+
+        console.log("[bank] loaded questions:", merged.length);
+        setBank(merged);
+      } catch (e) {
+        console.error("[bank] load failed:", e);
+        alert("題庫載入失敗：請確認 public/bank/manifest.json 與檔案路徑是否正確。");
+      }
+    };
+
+    loadBank();
+  }, []);
+    useEffect(() => {
+    gemini.setBank(bank);
+  }, [bank]);
   const handleRetrieveQuestion = async (byId: boolean = false) => {
     setState(prev => ({ ...prev, status: 'LOADING' }));
     try {
