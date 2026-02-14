@@ -1,146 +1,155 @@
-// geminiService.ts
+// geminiService.ts (LOCAL bank engine; no LLM needed)
 import { Subject, Category, Question, SESSION_METADATA } from "./types";
 
-type RawChoice = { choice_id: string; text: string };
-type RawQuestion = {
+type PresentedChoice = { label: string; choice_id: string; text: string };
+
+export type BankItem = {
+  action?: "present_question" | "grade_answer" | "exam_summary";
+  source_check?: "matched" | "not_found";
+
   question_id: string;
   year: number;
   subject_code: string;
   question_no: number;
   question_type?: "single" | "multiple";
+
   stem: string;
-  choices: RawChoice[];
+  stem_len?: number;
+  choices_len?: number[];
+  presented_choices: PresentedChoice[];
+
   correct_choice_ids?: string[];
   explanation?: string;
   tags?: string[];
 };
 
-function charLen(s: string): number {
-  // 以字元數為主（含中文、標點）
-  return (s ?? "").length;
-}
-
-function normalizeId(id: string): string {
-  return (id || "").trim();
-}
-
-function toQuestion(raw: RawQuestion): Question {
-  const presented = raw.choices?.map((c, idx) => ({
-    id: c.choice_id,
-    label: String.fromCharCode("A".charCodeAt(0) + idx),
-    content: c.text,
-  })) ?? [];
-
-  return {
-    id: raw.question_id,
-    year: raw.year,
-    subject_code: raw.subject_code,
-    question_no: raw.question_no,
-    subject: raw.subject_code as Subject,
-    content: raw.stem,
-    stem_len: charLen(raw.stem),
-    choices_len: raw.choices?.map(c => charLen(c.text)) ?? [],
-    options: presented,
-    weight: 2,
-    lawRef: raw.tags?.[0],
-  };
-}
-
 export class GeminiService {
-  private bank: RawQuestion[] = [];
+  private bank: BankItem[] = [];
+  private byId = new Map<string, BankItem>();
+  private byMeta = new Map<string, BankItem>(); // `${year}-${subject_code}-${no}`
 
-  /** App.tsx 會在載入題庫後呼叫 */
-  setBank(bank: any[]) {
-    // 保守處理：只收看起來像題目的物件
-    this.bank = (bank || []).filter((x: any) => x && x.question_id && x.stem && x.choices);
+  /** Call once after bank loaded */
+  setBank(items: BankItem[]) {
+    this.bank = Array.isArray(items) ? items : [];
+    this.byId.clear();
+    this.byMeta.clear();
+
+    for (const it of this.bank) {
+      if (!it?.question_id) continue;
+      this.byId.set(it.question_id, it);
+      const metaKey = this.metaKey(String(it.year), String(it.subject_code), String(it.question_no));
+      this.byMeta.set(metaKey, it);
+    }
   }
 
-  /** 精準：question_id 完全一致才算 */
+  private metaKey(year: string, subjectCode: string, questionNo: string) {
+    // keep as plain "108-1301-5" normalized
+    const y = String(year).trim();
+    const s = String(subjectCode).trim();
+    const n = String(parseInt(String(questionNo).trim(), 10));
+    return `${y}-${s}-${n}`;
+  }
+
+  private mapToQuestion(it: BankItem): Question {
+    return {
+      id: it.question_id,
+      year: it.year,
+      subject_code: it.subject_code,
+      question_no: it.question_no,
+      subject: it.subject_code as Subject, // your Subject enum seems to be code-based
+      content: it.stem,
+      stem_len: it.stem_len ?? it.stem?.length ?? 0,
+      choices_len:
+        it.choices_len ??
+        (it.presented_choices?.map((c) => (c.text ?? "").length) ?? []),
+      options: (it.presented_choices || []).map((c) => ({
+        id: c.choice_id,
+        content: c.text,
+        label: c.label,
+      })),
+      weight: 2,
+      lawRef: it.tags?.[0],
+    };
+  }
+
   async retrieveByQuestionId(questionId: string): Promise<Question | null> {
-    const id = normalizeId(questionId);
-    const hit = this.bank.find(q => normalizeId(q.question_id) === id);
-    return hit ? toQuestion(hit) : null;
+    const qid = String(questionId || "").trim();
+    const hit = this.byId.get(qid);
+    if (!hit) return null;
+    return this.mapToQuestion(hit);
   }
 
-  /** 精準：year + subject_code + question_no 完全一致才算 */
   async retrieveSpecificQuestion(year: string, subjectCode: string, questionNo: string): Promise<Question | null> {
-    const y = Number(year);
-    const no = Number(questionNo);
-    const code = (subjectCode || "").trim();
-
-    const hit = this.bank.find(q =>
-      q.year === y &&
-      String(q.subject_code).trim() === code &&
-      q.question_no === no
-    );
-
-    return hit ? toQuestion(hit) : null;
+    const key = this.metaKey(year, subjectCode, questionNo);
+    const hit = this.byMeta.get(key);
+    if (!hit) return null;
+    return this.mapToQuestion(hit);
   }
 
-  /** 取題：SUBJECT（同科目抽題） / MOCK（依 SESSION_METADATA 組卷抽題） */
   async fetchQuestions(mode: "SUBJECT" | "MOCK", target: string): Promise<Question[]> {
     if (!this.bank.length) return [];
 
-    const pickN = (arr: RawQuestion[], n: number) => {
-      // 洗牌抽樣
-      const copy = arr.slice();
-      for (let i = copy.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [copy[i], copy[j]] = [copy[j], copy[i]];
-      }
-      return copy.slice(0, n);
-    };
-
     if (mode === "SUBJECT") {
-      const subject = target as Subject;
-      const pool = this.bank.filter(q => String(q.subject_code) === String(subject));
-      return pickN(pool, 10).map(toQuestion);
+      const subjectCode = String(target).trim();
+      const pool = this.bank.filter((it) => String(it.subject_code).trim() === subjectCode);
+      return this.sample(pool, 10).map((it) => this.mapToQuestion(it));
     }
 
-    // MOCK
+    // MOCK: target is Category (e.g., '民法+刑法...' etc)
     const cat = target as Category;
-    const meta = SESSION_METADATA[cat];
-    const subjects = meta?.subjects ?? [];
-    const pool = this.bank.filter(q => subjects.includes(q.subject_code as any));
-    return pickN(pool, 15).map(toQuestion);
+    const meta = SESSION_METADATA?.[cat];
+    const subjectCodes = meta?.subjects || [];
+
+    const pool = this.bank.filter((it) => subjectCodes.includes(it.subject_code as any));
+    return this.sample(pool, 15).map((it) => this.mapToQuestion(it));
   }
 
-  /** 批改：直接用 bank 裡的 correct_choice_ids */
-  async gradeAnswer(question: Question, selectedChoiceId: string): Promise<{
+  async gradeAnswer(
+    question: Question,
+    selectedChoiceId: string
+  ): Promise<{
     isCorrect: boolean;
     correctChoiceIds: string[];
     explanation: string;
     feedbackAsset: string;
   }> {
-    const hit = this.bank.find(q => normalizeId(q.question_id) === normalizeId(question.id));
-    if (!hit) {
-      return { isCorrect: false, correctChoiceIds: [], explanation: "找不到題目資料，無法批改。", feedbackAsset: "none" };
-    }
+    const raw = this.byId.get(question.id);
+    const correct = raw?.correct_choice_ids || [];
 
-    const correct = hit.correct_choice_ids ?? [];
-    const isCorrect = correct.includes(selectedChoiceId);
+    const picked = String(selectedChoiceId || "").trim();
+    const isCorrect = correct.includes(picked);
 
-    // 解析：優先用題庫內建 explanation；沒有就給空字串（你也可改成提示用戶自己寫筆記）
-    const explanation = hit.explanation?.trim()
-      ? hit.explanation.trim()
-      : "（本題尚未提供官方解析，建議依題幹與選項自行整理要點。）";
+    // Use stored explanation if exists; otherwise generate a safe local one
+    const explanation =
+      raw?.explanation?.trim() ||
+      `本題正確選項為 ${correct.join(", ") || "（題庫未附答案）"}。請回到題幹與選項逐句對照關鍵要件，排除不符合要件或推論跳躍的選項。`;
 
     return {
       isCorrect,
       correctChoiceIds: correct,
       explanation,
-      feedbackAsset: isCorrect ? "fireworks" : "none",
+      feedbackAsset: isCorrect ? "correct" : "wrong",
     };
   }
 
-  /** 考後總結：純前端簡單統計（你可再進化） */
   async getExamSummary(history: any[]): Promise<string> {
-    const total = history.length;
-    if (!total) return "測驗結束。";
+    // Simple deterministic summary (no LLM)
+    if (!history?.length) return "測驗結束。";
 
-    const correct = history.filter((h: any) => h?.isCorrect).length;
+    const total = history.length;
+    const correct = history.filter((h: any) => !!h.isCorrect).length;
     const acc = Math.round((correct / total) * 100);
 
-    return `本次共作答 ${total} 題，答對 ${correct} 題，正確率 ${acc}%。建議優先複習錯題並在同科目再做一輪抽題加強。`;
+    return `本次共 ${total} 題，答對 ${correct} 題，正確率約 ${acc}%。建議優先回看錯題，將「題幹要件 → 選項對應要件」做成筆記，避免同類錯誤重複發生。`;
+  }
+
+  private sample<T>(arr: T[], n: number): T[] {
+    const a = [...arr];
+    // Fisher–Yates shuffle
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a.slice(0, Math.min(n, a.length));
   }
 }
