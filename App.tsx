@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Subject, Category, Question, QuizState, UserStats, SESSION_METADATA } from './types';
 import { GeminiService } from './geminiService';
@@ -20,43 +19,65 @@ const INITIAL_STATS: UserStats = {
 
 export default function App() {
   const [bank, setBank] = useState<any[]>([]);
-    // ✅ App 啟動時：讀取 public/bank/manifest.json，並把 files 逐一抓回來
+
+  // ✅ 只保留一個 useEffect 來載入題庫
   useEffect(() => {
     const loadBankFromPublic = async () => {
       try {
-        const manifestRes = await fetch(`${import.meta.env.BASE_URL}bank/manifest.json`);
-        if (!manifestRes.ok) throw new Error("manifest_not_found");
-        const manifest = await manifestRes.json();
+        const base = import.meta.env.BASE_URL || "/";
+        const manifestUrl = `${base}bank/manifest.json`;
+        
+        console.log("[bank] Loading manifest from:", manifestUrl);
 
+        const manifestRes = await fetch(manifestUrl, { cache: "no-store" });
+        if (!manifestRes.ok) {
+          throw new Error(`manifest fetch failed: ${manifestRes.status} ${manifestRes.statusText}`);
+        }
+
+        const manifest = await manifestRes.json();
         const files: string[] = manifest.files || [];
+        
         if (!files.length) {
           console.warn("manifest has no files");
           setBank([]);
           return;
         }
 
+        console.log("[bank] Loading files:", files);
+
         const all = await Promise.all(
           files.map(async (f) => {
-            const r = await fetch(`${import.meta.env.BASE_URL}bank/${f}`);
-            if (!r.ok) throw new Error(`file_not_found:${f}`);
+            const url = `${base}bank/${f}`;
+            console.log("[bank] Fetching:", url);
+            const r = await fetch(url, { cache: "no-store" });
+            if (!r.ok) throw new Error(`file_not_found: ${f} (${r.status})`);
             return r.json();
           })
         );
 
-        // 你的 json 可能是「單題」或「多題陣列」：這裡做 flatten
+        // 處理可能是陣列或物件的情況
         const flattened = all.flatMap((x: any) => Array.isArray(x) ? x : [x]);
 
+        console.log("[bank] ✅ Loaded questions:", flattened.length);
         setBank(flattened);
-        console.log("bank loaded:", flattened.length);
+        gemini.setBank(flattened); // 立即設定到 gemini service
       } catch (e) {
-        console.error("Failed to load bank:", e);
+        console.error("[bank] ❌ Load failed:", e);
         setBank([]);
-        alert("題庫載入失敗：請確認 public/bank/manifest.json 與題庫檔案已上傳。");
+        alert("題庫載入失敗：請確認 public/bank/manifest.json 與題庫檔案已上傳。\n\n" + (e as Error).message);
       }
     };
 
     loadBankFromPublic();
   }, []);
+
+  // ✅ 當 bank 更新時，同步到 gemini service
+  useEffect(() => {
+    if (bank.length > 0) {
+      gemini.setBank(bank);
+      console.log("[bank] Synced to gemini service:", bank.length, "questions");
+    }
+  }, [bank]);
 
   const [correctMap, setCorrectMap] = useState<Record<string, string[]>>({});
   const [feedback, setFeedback] = useState<'NONE' | 'CORRECT' | 'WRONG'>('NONE');
@@ -66,8 +87,8 @@ export default function App() {
 
   const [searchYear, setSearchYear] = useState('108');
   const [searchCode, setSearchCode] = useState('1301');
-  const [searchNo, setSearchNo] = useState('5');
-  const [searchId, setSearchId] = useState('108-1301-005');
+  const [searchNo, setSearchNo] = useState('1');
+  const [searchId, setSearchId] = useState('108-1301-001');
 
   const [state, setState] = useState<QuizState>(() => {
     const savedMemos = localStorage.getItem('law_quiz_memos');
@@ -154,6 +175,11 @@ export default function App() {
   };
 
   const handleRetrieveQuestion = async (byId: boolean = false) => {
+    if (bank.length === 0) {
+      alert("題庫尚未載入完成，請稍候再試。");
+      return;
+    }
+
     setState(prev => ({ ...prev, status: 'LOADING' }));
     try {
       const q = byId 
@@ -182,31 +208,44 @@ export default function App() {
   };
 
   const startPractice = async (subject: Subject) => {
+    if (bank.length === 0) {
+      alert("題庫尚未載入完成，請稍候再試。");
+      return;
+    }
+
     setState(prev => ({ ...prev, status: 'LOADING', mode: 'SUBJECT_PRACTICE' }));
     try {
       const qs = await gemini.fetchQuestions('SUBJECT', subject);
       if (!qs.length) {
-        alert("目前題庫中無此科目的題目。");
+        alert(`目前題庫中無「${subject}」的題目。\n\n目前題庫共有 ${bank.length} 題，請確認是否包含此科目。`);
         forceResetToHome();
         return;
       }
       setState(prev => ({ ...prev, questions: qs, status: 'QUIZ', currentIndex: 0, score: 0, answers: {} }));
     } catch (err) {
+      console.error(err);
       alert("載入失敗。");
       forceResetToHome();
     }
   };
 
   const startMockExam = async (cat: Category) => {
+    if (bank.length === 0) {
+      alert("題庫尚未載入完成，請稍候再試。");
+      return;
+    }
+
     setState(prev => ({ ...prev, status: 'LOADING', mode: 'MOCK_EXAM', category: cat }));
     try {
       const qs = await gemini.fetchQuestions('MOCK', cat);
       if (!qs.length) {
-        console.warn("MOCK 回傳為空，改用本地題庫進行測試");
-        // 暫時不要擋掉流程
+        alert(`目前題庫中無「${cat}」相關科目的題目。\n\n目前題庫共有 ${bank.length} 題。`);
+        forceResetToHome();
+        return;
       }
       setState(prev => ({ ...prev, questions: qs, status: 'QUIZ', currentIndex: 0, score: 0, answers: {} }));
     } catch (err) {
+      console.error(err);
       alert("生成失敗。");
       forceResetToHome();
     }
@@ -298,7 +337,7 @@ export default function App() {
     );
   }
 
-  if (state.status === 'DASHBOARD') return <Dashboard stats={state.stats} onBack={forceResetToHome} />;
+  if (state.status === 'DASHBOARD') return <Dashboard state={state} onBack={forceResetToHome} />;
 
   if (state.status === 'IDLE') {
     return (
@@ -311,8 +350,15 @@ export default function App() {
           <h1 className="text-9xl font-black text-slate-900 mb-10 tracking-tighter leading-none">律師一試<br/><span className="text-indigo-600">考題專家</span></h1>
           <div className="mt-12 max-w-3xl mx-auto bg-white border-2 rounded-[3rem] p-10 shadow-xl border-indigo-100">
             <div className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-4">資料中心庫入</div>
-            <input type="file" accept="application/json" multiple onChange={handleUploadBankFiles} className="block w-full text-sm file:mr-6 file:py-3 file:px-6 file:rounded-full file:bg-slate-900 file:text-white" />
-            <div className="mt-4 text-[10px] text-slate-400 font-bold uppercase">目前庫存題目: {bank.length} 題</div>
+            <input type="file" accept="application/json" multiple onChange={handleUploadBankFiles} className="block w-full text-sm file:mr-6 file:py-3 file:px-6 file:rounded-full file:bg-slate-900 file:text-white file:font-bold file:border-0 hover:file:bg-indigo-600 cursor-pointer" />
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-[10px] text-slate-400 font-bold uppercase">
+                目前庫存題目: <span className="text-indigo-600 text-lg font-black">{bank.length}</span> 題
+              </div>
+              {bank.length === 0 && (
+                <div className="text-[10px] text-rose-500 font-bold animate-pulse">⚠️ 題庫載入中...</div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -328,26 +374,26 @@ export default function App() {
               <div className="mb-12 p-8 bg-slate-800 rounded-3xl border border-slate-700">
                 <label className="text-[10px] font-black text-indigo-400 uppercase mb-4 block">按 Question ID 搜尋</label>
                 <div className="flex gap-4">
-                  <input type="text" value={searchId} onChange={e => setSearchId(e.target.value)} placeholder="例如: 108-1301-005" className="flex-1 bg-slate-800 border-2 border-slate-700 rounded-3xl p-5 text-xl font-black focus:border-indigo-500 outline-none" />
-                  <button onClick={() => handleRetrieveQuestion(true)} className="bg-indigo-600 px-10 rounded-3xl font-black hover:bg-indigo-500 transition-all active:scale-95">檢索</button>
+                  <input type="text" value={searchId} onChange={e => setSearchId(e.target.value)} placeholder="例如: 108-1301-001" className="flex-1 bg-slate-700 border-2 border-slate-600 rounded-3xl p-5 text-xl font-black focus:border-indigo-500 outline-none placeholder:text-slate-500" />
+                  <button onClick={() => handleRetrieveQuestion(true)} disabled={bank.length === 0} className="bg-indigo-600 px-10 rounded-3xl font-black hover:bg-indigo-500 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">檢索</button>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4 mb-8">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase">年度</label>
-                  <input type="text" value={searchYear} onChange={e => setSearchYear(e.target.value)} placeholder="108" className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-center font-black" />
+                  <input type="text" value={searchYear} onChange={e => setSearchYear(e.target.value)} placeholder="108" className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-center font-black focus:border-indigo-500 outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase">科目代碼</label>
-                  <input type="text" value={searchCode} onChange={e => setSearchCode(e.target.value)} placeholder="1301" className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-center font-black" />
+                  <input type="text" value={searchCode} onChange={e => setSearchCode(e.target.value)} placeholder="1301" className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-center font-black focus:border-indigo-500 outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase">題號</label>
-                  <input type="text" value={searchNo} onChange={e => setSearchNo(e.target.value)} placeholder="5" className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-center font-black" />
+                  <input type="text" value={searchNo} onChange={e => setSearchNo(e.target.value)} placeholder="1" className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-center font-black focus:border-indigo-500 outline-none" />
                 </div>
               </div>
-              <button onClick={() => handleRetrieveQuestion(false)} className="w-full bg-slate-700 py-6 rounded-3xl font-black text-lg border-2 border-indigo-900/50 hover:bg-indigo-900 transition-all active:scale-95">由 Metadata 定位題目</button>
+              <button onClick={() => handleRetrieveQuestion(false)} disabled={bank.length === 0} className="w-full bg-slate-700 py-6 rounded-3xl font-black text-lg border-2 border-indigo-900/50 hover:bg-indigo-900 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">由 Metadata 定位題目</button>
             </section>
 
             <div className="space-y-10">
@@ -356,7 +402,7 @@ export default function App() {
                 {Object.keys(Category).map(key => {
                    const cat = Category[key as keyof typeof Category];
                    return (
-                    <button key={cat} onClick={() => startMockExam(cat)} className="bg-white border-2 border-slate-100 p-14 rounded-[5rem] text-left hover:border-indigo-600 transition-all shadow-xl hover:shadow-4xl group">
+                    <button key={cat} onClick={() => startMockExam(cat)} disabled={bank.length === 0} className="bg-white border-2 border-slate-100 p-14 rounded-[5rem] text-left hover:border-indigo-600 transition-all shadow-xl hover:shadow-4xl group disabled:opacity-50 disabled:cursor-not-allowed">
                       <h3 className="text-2xl font-black mb-6 group-hover:text-indigo-600 transition-colors">{cat}</h3>
                       <div className="text-[10px] font-bold bg-slate-100 text-slate-400 px-4 py-1.5 rounded-full inline-block uppercase tracking-widest">300 Points Mock</div>
                     </button>
@@ -371,7 +417,7 @@ export default function App() {
               <h3 className="text-2xl font-black mb-12 flex items-center">🎯 專科擊破</h3>
               <div className="flex flex-wrap gap-3">
                 {Object.values(Subject).map(sub => (
-                  <button key={sub} onClick={() => startPractice(sub)} className="px-5 py-3 bg-slate-800 border border-slate-700 rounded-2xl text-[11px] font-black hover:bg-indigo-500 hover:border-indigo-400 transition-all">{sub}</button>
+                  <button key={sub} onClick={() => startPractice(sub)} disabled={bank.length === 0} className="px-5 py-3 bg-slate-800 border border-slate-700 rounded-2xl text-[11px] font-black hover:bg-indigo-500 hover:border-indigo-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed">{sub}</button>
                 ))}
               </div>
             </div>
