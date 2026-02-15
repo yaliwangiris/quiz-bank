@@ -409,7 +409,7 @@ export default function App() {
             <span className="text-2xl">📊</span>
             <span className="text-[10px] font-black uppercase ml-2 text-slate-400 group-hover:text-indigo-600">戰力分析</span>
           </button>
-          <h1 className="text-9xl font-black text-slate-900 mb-10 tracking-tighter leading-none">律師一試<br/><span className="text-indigo-600">考題專家</span></h1>
+          <h1 className="text-4xl sm:text-6xl md:text-9xl font-black text-slate-900 mb-10 tracking-tighter leading-none">律師一試<br/><span className="text-indigo-600">考題專家</span></h1>
           <div className="mt-6 text-center">
             {bank.length > 0 ? (
               <div className="text-xl font-black text-emerald-600">✓ 題庫已載入: {bank.length} 題</div>
@@ -508,13 +508,13 @@ export default function App() {
             <span className="text-indigo-600 font-black uppercase tracking-widest">{currentQ.subject} (代碼: {currentQ.subject_code})</span>
           </div>
 
-          <h2 className="text-4xl text-slate-800 font-bold leading-[1.8] mb-20 tracking-tight">{currentQ.content}</h2>
+          <h2 className="text-xl sm:text-2xl md:text-4xl text-slate-800 font-bold leading-[1.8] mb-20 tracking-tight">{currentQ.content}</h2>
           
-          <div className="grid gap-8">
+          <div className="grid gap-4 sm:gap-6 md:gap-8">
             {currentQ.options.map((opt) => {
               const isSelected = state.answers[currentQ.id] === opt.id;
               const isCorrect = currentCorrectIds.includes(opt.id);
-              let cls = "w-full text-left p-12 rounded-[3.5rem] border-4 transition-all flex items-start group shadow-lg ";
+              let cls = "w-full text-left p-4 sm:p-8 md:p-12 rounded-[3.5rem] border-4 transition-all flex items-start group shadow-lg ";
               if (!answered) cls += "bg-slate-50 border-slate-50 hover:border-indigo-600 hover:bg-white active:scale-[0.98]";
               else if (isCorrect) cls += "border-emerald-500 bg-emerald-50 text-emerald-900 ring-[16px] ring-emerald-500/10";
               else if (isSelected) cls += "border-rose-500 bg-rose-50 text-rose-900 opacity-90";
@@ -522,10 +522,10 @@ export default function App() {
 
               return (
                 <button key={opt.id} disabled={answered || loadingAction} onClick={() => handleSelectOption(opt.id)} className={cls}>
-                  <div className={`flex-shrink-0 w-16 h-16 rounded-3xl flex items-center justify-center mr-10 text-3xl font-black transition-all ${answered && isCorrect ? 'bg-emerald-500 text-white' : 'bg-white shadow group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                  <div className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 rounded-3xl flex items-center justify-center mr-4 sm:mr-6 md:mr-10 text-lg sm:text-2xl md:text-3xl font-black transition-all ${answered && isCorrect ? 'bg-emerald-500 text-white' : 'bg-white shadow group-hover:bg-indigo-600 group-hover:text-white'}`}>
                     {opt.label}
                   </div>
-                  <span className="font-bold text-2xl leading-relaxed pt-3">{opt.content}</span>
+                  <span className="font-bold text-base sm:text-lg md:text-2xl leading-relaxed pt-3">{opt.content}</span>
                 </button>
               );
             })}
@@ -545,9 +545,9 @@ export default function App() {
                     <CryingCat />
                   </div>
                   {explanation && (
-                    <div className="bg-rose-50 border-2 border-rose-200 rounded-[3rem] p-12">
-                      <h4 className="text-xl font-black text-rose-900 mb-6">📖 正確選項解析</h4>
-                      <p className="text-lg text-rose-800 leading-relaxed font-semibold">{explanation}</p>
+                    <div className="bg-rose-50 border-2 border-rose-200 rounded-[3rem] p-4 sm:p-8 md:p-12">
+                      <h4 className="text-base sm:text-lg md:text-xl font-black text-rose-900 mb-6">📖 正確選項解析</h4>
+                      <p className="text-sm sm:text-base md:text-lg text-rose-800 leading-relaxed font-semibold">{explanation}</p>
                     </div>
                   )}
                 </div>
@@ -580,48 +580,48 @@ export default function App() {
     const accuracy = state.questions.length > 0 ? Math.round((state.stats.correctCount / Math.max(state.stats.totalAnswered, state.questions.length)) * 100) : 0;
     
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 p-10 animate-in zoom-in duration-700">
-        <div className="max-w-5xl w-full bg-white rounded-[8rem] p-24 shadow-5xl text-center border-2 border-slate-100 relative overflow-hidden">
-          <div className="text-[14rem] mb-12 animate-bounce">🎓</div>
-          <h2 className="text-8xl font-black text-slate-900 mb-6 tracking-tighter uppercase">階段測驗完成</h2>
-          <p className="text-indigo-600 font-black text-lg mb-16 tracking-widest uppercase">Final Assessment Report</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 p-4 sm:p-8 md:p-10 animate-in zoom-in duration-700">
+        <div className="max-w-5xl w-full bg-white rounded-[6rem] sm:rounded-[8rem] p-8 sm:p-16 md:p-24 shadow-5xl text-center border-2 border-slate-100 relative overflow-hidden">
+          <div className="text-[6rem] sm:text-[10rem] md:text-[14rem] mb-6 sm:mb-10 md:mb-12 animate-bounce">🎓</div>
+          <h2 className="text-3xl sm:text-5xl md:text-8xl font-black text-slate-900 mb-4 md:mb-6 tracking-tighter uppercase">階段測驗完成</h2>
+          <p className="text-indigo-600 font-black text-xs sm:text-base md:text-lg mb-8 md:mb-16 tracking-widest uppercase">Final Assessment Report</p>
           
-          <div className="grid lg:grid-cols-3 gap-8 mb-20">
-            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-16 rounded-[4rem] border-2 border-indigo-300 shadow-lg">
-              <div className="text-indigo-600 text-6xl font-black leading-none mb-4 tabular-nums">{state.score}</div>
-              <div className="text-[10px] text-indigo-700 font-black uppercase tracking-[0.8em] mb-2">YOUR SCORE</div>
-              <div className="text-2xl font-black text-indigo-500">/ {totalPossible}</div>
+          <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mb-12 md:mb-20">
+            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-8 sm:p-12 md:p-16 rounded-[3rem] sm:rounded-[4rem] border-2 border-indigo-300 shadow-lg">
+              <div className="text-indigo-600 text-3xl sm:text-5xl md:text-6xl font-black leading-none mb-2 md:mb-4 tabular-nums">{state.score}</div>
+              <div className="text-[8px] sm:text-[10px] text-indigo-700 font-black uppercase tracking-[0.8em] mb-2">YOUR SCORE</div>
+              <div className="text-lg sm:text-xl md:text-2xl font-black text-indigo-500">/ {totalPossible}</div>
             </div>
             
-            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-16 rounded-[4rem] border-2 border-emerald-300 shadow-lg flex flex-col justify-center">
-              <div className="text-emerald-600 text-6xl font-black mb-4">{accuracy}%</div>
-              <div className="text-[10px] text-emerald-700 font-black uppercase tracking-[0.8em]">正確率</div>
+            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-8 sm:p-12 md:p-16 rounded-[3rem] sm:rounded-[4rem] border-2 border-emerald-300 shadow-lg flex flex-col justify-center">
+              <div className="text-emerald-600 text-3xl sm:text-5xl md:text-6xl font-black mb-2 md:mb-4">{accuracy}%</div>
+              <div className="text-[8px] sm:text-[10px] text-emerald-700 font-black uppercase tracking-[0.8em]">正確率</div>
             </div>
 
-            <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-16 rounded-[4rem] border-2 border-amber-300 shadow-lg flex flex-col justify-center">
-              <div className="text-amber-600 text-6xl font-black mb-4">{state.questions.length}</div>
-              <div className="text-[10px] text-amber-700 font-black uppercase tracking-[0.8em]">總題數</div>
+            <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-8 sm:p-12 md:p-16 rounded-[3rem] sm:rounded-[4rem] border-2 border-amber-300 shadow-lg flex flex-col justify-center">
+              <div className="text-amber-600 text-3xl sm:text-5xl md:text-6xl font-black mb-2 md:mb-4">{state.questions.length}</div>
+              <div className="text-[8px] sm:text-[10px] text-amber-700 font-black uppercase tracking-[0.8em]">總題數</div>
             </div>
           </div>
             
-          <div className="bg-indigo-900 p-12 rounded-[4rem] text-left text-white shadow-4xl relative overflow-hidden mb-16">
-            <div className="absolute bottom-0 right-0 p-8 text-indigo-800 opacity-40 text-7xl font-black">⚖️</div>
-            <h4 className="text-[12px] font-black uppercase tracking-[0.5em] mb-6 opacity-60">專家綜合診斷</h4>
-            <p className="text-xl font-bold leading-[2] text-indigo-50 relative z-10">
+          <div className="bg-indigo-900 p-6 sm:p-8 md:p-12 rounded-[3rem] sm:rounded-[4rem] text-left text-white shadow-4xl relative overflow-hidden mb-8 md:mb-16">
+            <div className="absolute bottom-0 right-0 p-4 sm:p-6 md:p-8 text-indigo-800 opacity-40 text-4xl sm:text-6xl md:text-7xl font-black">⚖️</div>
+            <h4 className="text-[10px] sm:text-[11px] md:text-[12px] font-black uppercase tracking-[0.5em] mb-4 md:mb-6 opacity-60">專家綜合診斷</h4>
+            <p className="text-sm sm:text-base md:text-xl font-bold leading-[1.6] md:leading-[2] text-indigo-50 relative z-10">
               {state.summaryText}
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6">
             <button 
               onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))} 
-              className="bg-indigo-100 border-2 border-indigo-300 text-indigo-900 py-12 rounded-[3rem] font-black text-2xl hover:bg-indigo-200 transition-all active:scale-[0.98] shadow-lg tracking-widest uppercase"
+              className="bg-indigo-100 border-2 border-indigo-300 text-indigo-900 py-6 sm:py-8 md:py-12 rounded-[2rem] sm:rounded-[3rem] font-black text-sm sm:text-lg md:text-2xl hover:bg-indigo-200 transition-all active:scale-[0.98] shadow-lg tracking-widest uppercase"
             >
               📊 數據分析
             </button>
             <button 
               onClick={forceResetToHome} 
-              className="bg-slate-900 text-white py-12 rounded-[3rem] font-black text-2xl hover:bg-indigo-600 transition-all active:scale-[0.98] shadow-5xl tracking-widest uppercase"
+              className="bg-slate-900 text-white py-6 sm:py-8 md:py-12 rounded-[2rem] sm:rounded-[3rem] font-black text-sm sm:text-lg md:text-2xl hover:bg-indigo-600 transition-all active:scale-[0.98] shadow-5xl tracking-widest uppercase"
             >
               🚀 返回戰略
             </button>
