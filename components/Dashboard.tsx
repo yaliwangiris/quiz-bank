@@ -1,19 +1,20 @@
 
-import React from 'react';
-import { UserStats, Subject } from '../types';
+import React, { useState } from 'react';
+import { UserStats, Subject, UserMemo } from '../types';
 
 interface DashboardProps {
   stats: UserStats;
+  memos?: Record<string, UserMemo>;
   onBack: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ stats, onBack }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ stats, memos = {}, onBack }) => {
+  const [expandedMemo, setExpandedMemo] = useState<string | null>(null);
+  const [showAllMemos, setShowAllMemos] = useState(false);
+  
   const accuracy = stats.totalAnswered > 0 
     ? Math.round((stats.correctCount / stats.totalAnswered) * 100) 
     : 0;
-
-  const sortedSubjectStats = Object.entries(stats.subjectStats)
-    .sort((a, b) => (b[1].correct / b[1].total) - (a[1].correct / a[1].total));
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -79,8 +80,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onBack }) => {
           </div>
         </section>
 
-        <section className="space-y-12">
-          <div className="bg-slate-900 p-16 rounded-[5rem] text-white shadow-4xl relative overflow-hidden">
+        <div className="space-y-12">
+          <section className="bg-slate-900 p-16 rounded-[5rem] text-white shadow-4xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-12 text-indigo-500 opacity-20 text-9xl font-black">📈</div>
             <h3 className="text-2xl font-black mb-10 relative z-10">最近測驗趨勢</h3>
             <div className="space-y-8 relative z-10">
@@ -97,19 +98,106 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onBack }) => {
                 </div>
               ))}
             </div>
-          </div>
+          </section>
 
-          <div className="bg-indigo-50 p-16 rounded-[5rem] border-2 border-indigo-100 shadow-xl">
-            <h3 className="text-2xl font-black text-indigo-900 mb-8">導師分析</h3>
-            <p className="text-lg font-bold leading-relaxed text-indigo-700">
-              {accuracy > 80 ? '您的法律邏輯非常扎實，建議開始挑戰全真模擬試卷以維持題感。' : 
-               accuracy > 60 ? '表現穩健，但特定學說見解仍有強化空間，建議針對正確率低於 70% 的科目進行專科練習。' : 
-               stats.totalAnswered > 0 ? '目前法感尚在磨練中，建議先從基礎條文下手，並多看專家解析中的法源依據。' : 
-               '歡迎來到考題專家系統，我們準備好與您一起征服律師國考。'}
-            </p>
-          </div>
-        </section>
+          <section className="bg-gradient-to-br from-indigo-50 to-blue-50 p-16 rounded-[5rem] border-2 border-indigo-200 shadow-xl">
+            <h3 className="text-2xl font-black text-indigo-900 mb-10 flex items-center justify-between">
+              <span className="flex items-center">
+                <span className="mr-3 text-3xl">📝</span> 筆記庫 ({Object.keys(memos).length})
+              </span>
+              {Object.keys(memos).length > 0 && (
+                <button 
+                  onClick={() => setShowAllMemos(!showAllMemos)}
+                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 px-4 py-2 rounded-lg hover:bg-white transition-all"
+                >
+                  {showAllMemos ? '收起全部' : '查看全部'}
+                </button>
+              )}
+            </h3>
+            {Object.keys(memos).length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-indigo-600 font-bold">尚無筆記</p>
+                <p className="text-indigo-500 text-sm">在答題時儲存筆記，管理學習重點</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {showAllMemos ? (
+                  // 展示全部筆記
+                  <div className="max-h-[600px] overflow-y-auto">
+                    {Object.entries(memos).reverse().map(([id, memo]) => (
+                      <div 
+                        key={id} 
+                        className="p-5 bg-white rounded-2xl border-2 border-indigo-200 hover:border-indigo-400 transition-all cursor-pointer"
+                        onClick={() => setExpandedMemo(expandedMemo === id ? null : id)}
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <span className="text-xs font-bold text-white bg-indigo-600 px-3 py-1 rounded-lg">
+                            {id}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {new Date(memo.timestamp).toLocaleString()}
+                          </span>
+                          <span className="text-lg text-indigo-600">
+                            {expandedMemo === id ? '▼' : '▶'}
+                          </span>
+                        </div>
+                        
+                        {memo.text && (
+                          <p className={`text-sm text-slate-800 font-medium ${expandedMemo === id ? '' : 'line-clamp-2'}`}>
+                            {memo.text}
+                          </p>
+                        )}
+                        
+                        {expandedMemo === id && memo.imageUrl && (
+                          <div className="mt-4 pt-4 border-t border-indigo-200">
+                            <img src={memo.imageUrl} alt="Note" className="max-w-full rounded-lg border shadow-md" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // 展示最近 5 筆筆記
+                  <div className="max-h-80 overflow-y-auto">
+                    {Object.entries(memos).slice(-5).reverse().map(([id, memo]) => (
+                      <div 
+                        key={id} 
+                        className="p-4 bg-white rounded-2xl border border-indigo-200 hover:shadow-md hover:border-indigo-400 transition-all cursor-pointer mb-3"
+                        onClick={() => setExpandedMemo(expandedMemo === id ? null : id)}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
+                            {id}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {new Date(memo.timestamp).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {memo.text && (
+                          <p className="text-sm text-slate-800 mb-2 line-clamp-2 font-medium">{memo.text}</p>
+                        )}
+                        {memo.imageUrl && (
+                          <img src={memo.imageUrl} alt="Note" className="max-h-20 rounded border" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
+
+      <section className="bg-indigo-50 p-16 rounded-[5rem] border-2 border-indigo-100 shadow-xl mt-12">
+        <h3 className="text-2xl font-black text-indigo-900 mb-8">導師分析</h3>
+        <p className="text-lg font-bold leading-relaxed text-indigo-700">
+          {accuracy > 80 ? '您的法律邏輯非常扎實，建議開始挑戰全真模擬試卷以維持題感。' : 
+           accuracy > 60 ? '表現穩健，但特定學說見解仍有強化空間，建議針對正確率低於 70% 的科目進行專科練習。' : 
+           stats.totalAnswered > 0 ? '目前法感尚在磨練中，建議先從基礎條文下手，並多看專家解析中的法源依據。' : 
+           '歡迎來到考題專家系統，我們準備好與您一起征服律師國考。'}
+        </p>
+      </section>
     </div>
   );
 };

@@ -36,17 +36,25 @@ export const SESSION_METADATA: Record<Category, SessionConfig> = {
     totalPoints: 300
   },
   [Category.SESSION_2]: {
-    subjects: [Subject.CIVIL, Subject.CIVIL_PROC],
+    subjects: [Subject.CRIMINAL, Subject.CRIMINAL_PROC, Subject.LEGAL_ETHICS],
     totalPoints: 300
   },
   [Category.SESSION_3]: {
-    subjects: [Subject.COMPANY, Subject.INSURANCE, Subject.NOTES, Subject.SECURITIES, Subject.EXECUTION, Subject.LEGAL_ENGLISH],
+    subjects: [Subject.CIVIL, Subject.CIVIL_PROC],
     totalPoints: 300
   },
   [Category.SESSION_4]: {
-    subjects: [Subject.CRIMINAL, Subject.CRIMINAL_PROC, Subject.LEGAL_ETHICS],
+    subjects: [Subject.COMPANY, Subject.INSURANCE, Subject.NOTES, Subject.SECURITIES, Subject.EXECUTION, Subject.LEGAL_ENGLISH],
     totalPoints: 300
   }
+};
+
+// 新增：將 Category 映射到題庫中使用的科目代碼（便於精準抽題）
+export const CATEGORY_CODE_MAP: Record<Category, string[]> = {
+  [Category.SESSION_1]: ['2301'], // 憲法/行政法/國際公法/國際私法
+  [Category.SESSION_2]: ['1301'], // 刑法/刑事訴訟法/法律倫理
+  [Category.SESSION_3]: ['3301'], // 民法/民事訴訟法
+  [Category.SESSION_4]: ['4301'], // 公司法/保險法/票據法/證券交易法/強制執行法/法學英文
 };
 
 export interface SubjectStat {

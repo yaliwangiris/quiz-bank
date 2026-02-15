@@ -7,7 +7,21 @@ import { Dashboard } from './components/Dashboard';
 
 const gemini = new GeminiService();
 
-const INITIAL_STATS: UserStats = { 
+  // 💾 規範化題庫格式函數
+const normalizeQuestions = (questions: any[]): any[] => {
+  return questions.map((q: any) => {
+    if (!q.presented_choices && q.choices) {
+      const choiceLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
+      q.presented_choices = q.choices.map((choice: any, idx: number) => ({
+        label: choiceLabels[idx] || String(idx + 1),
+        choice_id: choice.choice_id,
+        text: choice.text
+      }));
+    }
+    return q;
+  });
+};
+  const INITIAL_STATS: UserStats = { 
   totalAnswered: 0, 
   correctCount: 0, 
   currentStreak: 0, 
@@ -19,14 +33,13 @@ const INITIAL_STATS: UserStats = {
 
 export default function App() {
   const [bank, setBank] = useState<any[]>([]);
-
   // ✅ 只保留一個 useEffect 來載入題庫
   useEffect(() => {
     const loadBankFromPublic = async () => {
       try {
         const base = import.meta.env.BASE_URL || "/";
         const manifestUrl = `${base}bank/manifest.json`;
-        
+
         console.log("[bank] Loading manifest from:", manifestUrl);
 
         const manifestRes = await fetch(manifestUrl, { cache: "no-store" });
@@ -36,16 +49,16 @@ export default function App() {
 
         const manifest = await manifestRes.json();
         const files: string[] = manifest.files || [];
-        
+
         if (!files.length) {
           console.warn("manifest has no files");
           setBank([]);
           return;
         }
 
-        console.log("[bank] Loading files:", files);
+        console.log("[bank] Loading files:", files.length, "total");
 
-        const all = await Promise.all(
+        const all = await Promise.allSettled(
           files.map(async (f) => {
             const url = `${base}bank/${f}`;
             console.log("[bank] Fetching:", url);
@@ -55,12 +68,17 @@ export default function App() {
           })
         );
 
-        // 處理可能是陣列或物件的情況
-        const flattened = all.flatMap((x: any) => Array.isArray(x) ? x : [x]);
+        // 處理可能是陣列或物件的情況，以及 Promise 結果
+        const results = all
+          .filter((p) => p.status === 'fulfilled')
+          .map((p) => (p as PromiseSettledResult<any>).value);
+        
+        const flattened = results.flatMap((x: any) => Array.isArray(x) ? x : [x]);
 
-        console.log("[bank] ✅ Loaded questions:", flattened.length);
-        setBank(flattened);
-        gemini.setBank(flattened); // 立即設定到 gemini service
+        const normalized = normalizeQuestions(flattened);
+        console.log("[bank] ✅ Loaded questions:", normalized.length, "from", results.length, "files");
+        setBank(normalized);
+        gemini.setBank(normalized); // 立即設定到 gemini service
       } catch (e) {
         console.error("[bank] ❌ Load failed:", e);
         setBank([]);
@@ -89,6 +107,14 @@ export default function App() {
   const [searchCode, setSearchCode] = useState('1301');
   const [searchNo, setSearchNo] = useState('1');
   const [searchId, setSearchId] = useState('108-1301-001');
+  const [simpleMode, setSimpleMode] = useState(false);
+  // 考試方向 mapping（按使用者要求）
+  const EXAM_DIRECTIONS: { code: string; label: string }[] = [
+    { code: '1301', label: '綜合法學一（刑法、刑事訴訟法、法律倫理）' },
+    { code: '2301', label: '綜合法學一（憲法、行政法、國際公法、國際私法）' },
+    { code: '3301', label: '綜合法學二（民法、民事訴訟法）' },
+    { code: '4301', label: '綜合法學二（公司法、保險法、票據法、證券交易法、強制執行法、法學英文）' },
+  ];
 
   const [state, setState] = useState<QuizState>(() => {
     const savedMemos = localStorage.getItem('law_quiz_memos');
@@ -119,28 +145,7 @@ export default function App() {
     };
   });
 
-  const handleUploadBankFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-
-    setLoadingAction(true);
-    try {
-      let merged: any[] = [];
-      for (const file of files) {
-        const text = await file.text();
-        const json = JSON.parse(text);
-        const arr = Array.isArray(json) ? json : (Array.isArray(json.questions) ? json.questions : []);
-        merged = merged.concat(arr);
-      }
-      setBank(merged);
-      gemini.setBank(merged);
-      alert(`✅ 成功載入題庫，共計 ${merged.length} 題。`);
-    } catch (err) {
-      alert("讀取失敗，請檢查 JSON 格式。");
-    } finally {
-      setLoadingAction(false);
-    }
-  };
+  // 上傳題庫功能已移除，題庫僅由後端/靜態 public 匯入
 
   const forceResetToHome = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -207,17 +212,17 @@ export default function App() {
     }
   };
 
-  const startPractice = async (subject: Subject) => {
+  const startPractice = async (subject: string | Subject) => {
     if (bank.length === 0) {
       alert("題庫尚未載入完成，請稍候再試。");
       return;
     }
-
     setState(prev => ({ ...prev, status: 'LOADING', mode: 'SUBJECT_PRACTICE' }));
     try {
-      const qs = await gemini.fetchQuestions('SUBJECT', subject);
+      const subjectCode = String(subject);
+      const qs = await gemini.fetchQuestions('SUBJECT', subjectCode);
       if (!qs.length) {
-        alert(`目前題庫中無「${subject}」的題目。\n\n目前題庫共有 ${bank.length} 題，請確認是否包含此科目。`);
+        alert(`目前題庫中無「${subjectCode}」的題目。\n\n目前題庫共有 ${bank.length} 題，請確認是否包含此科目。`);
         forceResetToHome();
         return;
       }
@@ -337,9 +342,46 @@ export default function App() {
     );
   }
 
-  if (state.status === 'DASHBOARD') return <Dashboard state={state} onBack={forceResetToHome} />;
+  if (state.status === 'DASHBOARD') return <Dashboard stats={state.stats} memos={state.memos} onBack={forceResetToHome} />;
 
   if (state.status === 'IDLE') {
+    if (simpleMode) {
+      return (
+        <div className="max-w-4xl mx-auto px-6 py-16">
+          <header className="text-center mb-8">
+            <h1 className="text-6xl font-black text-slate-900 mb-4">律師一試 - 簡化檢視</h1>
+            <div className="mb-4">
+              <button onClick={() => setSimpleMode(false)} className="px-6 py-2 bg-slate-900 text-white rounded-full">切換完整介面</button>
+            </div>
+            <div className="mt-6 bg-white p-6 rounded-xl shadow">
+              <div className="mb-2 font-black">題庫題數： <span className="text-indigo-600">{bank.length}</span></div>
+              <div className="text-sm text-slate-500 mb-4">題庫由後端匯入；點選下方方向開始對應練習或檢索題目</div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                {EXAM_DIRECTIONS.map(d => (
+                  <button key={d.code} onClick={() => startPractice(d.code)} className="px-4 py-2 bg-indigo-600 text-white rounded">{d.code} — {d.label}</button>
+                ))}
+              </div>
+            </div>
+          </header>
+
+          <section className="bg-white p-6 rounded-xl shadow">
+            <h2 className="font-bold mb-4">題庫前 30 題（Question ID）</h2>
+            <div className="grid grid-cols-1 gap-2">
+              {bank.slice(0, 30).map((q: any) => (
+                <div key={q.question_id} className="flex items-center justify-between p-3 border rounded">
+                  <div className="font-mono">{q.question_id}</div>
+                  <div className="space-x-2">
+                    <button onClick={() => { setSearchId(q.question_id); handleRetrieveQuestion(true); }} className="px-3 py-1 bg-indigo-600 text-white rounded">檢索</button>
+                    <button onClick={() => { setSearchYear(String(q.year)); setSearchCode(String(q.subject_code)); setSearchNo(String(q.question_no)); handleRetrieveQuestion(false); }} className="px-3 py-1 bg-slate-200 rounded">以 Metadata 檢索</button>
+                  </div>
+                </div>
+              ))}
+              {bank.length === 0 && <div className="text-rose-500 font-bold">目前題庫為空（請上傳或確認 manifest）</div>}
+            </div>
+          </section>
+        </div>
+      );
+    }
     return (
       <div className="max-w-6xl mx-auto px-6 py-16 animate-in fade-in duration-700">
         <header className="text-center mb-16 relative">
@@ -348,17 +390,12 @@ export default function App() {
             <span className="text-[10px] font-black uppercase ml-2 text-slate-400 group-hover:text-indigo-600">戰力分析</span>
           </button>
           <h1 className="text-9xl font-black text-slate-900 mb-10 tracking-tighter leading-none">律師一試<br/><span className="text-indigo-600">考題專家</span></h1>
-          <div className="mt-12 max-w-3xl mx-auto bg-white border-2 rounded-[3rem] p-10 shadow-xl border-indigo-100">
-            <div className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-4">資料中心庫入</div>
-            <input type="file" accept="application/json" multiple onChange={handleUploadBankFiles} className="block w-full text-sm file:mr-6 file:py-3 file:px-6 file:rounded-full file:bg-slate-900 file:text-white file:font-bold file:border-0 hover:file:bg-indigo-600 cursor-pointer" />
-            <div className="mt-4 flex items-center justify-between">
-              <div className="text-[10px] text-slate-400 font-bold uppercase">
-                目前庫存題目: <span className="text-indigo-600 text-lg font-black">{bank.length}</span> 題
-              </div>
-              {bank.length === 0 && (
-                <div className="text-[10px] text-rose-500 font-bold animate-pulse">⚠️ 題庫載入中...</div>
-              )}
-            </div>
+          <div className="mt-6 text-center">
+            {bank.length > 0 ? (
+              <div className="text-xl font-black text-emerald-600">✓ 題庫已載入: {bank.length} 題</div>
+            ) : (
+              <div className="text-xl font-black text-rose-500 animate-pulse">⏳ 題庫載入中...</div>
+            )}
           </div>
         </header>
 
@@ -413,15 +450,6 @@ export default function App() {
           </div>
 
           <aside className="space-y-12">
-            <div className="bg-slate-900 rounded-[5rem] p-16 text-white shadow-4xl relative overflow-hidden group">
-              <h3 className="text-2xl font-black mb-12 flex items-center">🎯 專科擊破</h3>
-              <div className="flex flex-wrap gap-3">
-                {Object.values(Subject).map(sub => (
-                  <button key={sub} onClick={() => startPractice(sub)} disabled={bank.length === 0} className="px-5 py-3 bg-slate-800 border border-slate-700 rounded-2xl text-[11px] font-black hover:bg-indigo-500 hover:border-indigo-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed">{sub}</button>
-                ))}
-              </div>
-            </div>
-
             <div className="bg-indigo-600 rounded-[5rem] p-16 text-white shadow-4xl relative overflow-hidden group cursor-pointer" onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))}>
               <h3 className="text-2xl font-black mb-4">數據總結</h3>
               <p className="text-indigo-100 font-bold mb-8">分析各科目正確率，定位學習弱點。</p>
@@ -484,44 +512,37 @@ export default function App() {
           </div>
 
           {feedback !== 'NONE' && (
-            <div className="mt-24 pt-20 border-t-2 border-slate-50 flex justify-center animate-in zoom-in duration-500">
+            <div className="mt-24 pt-20 border-t-2 border-slate-50 animate-in zoom-in duration-500">
               {feedback === 'CORRECT' ? (
-                <div className="text-5xl font-black text-emerald-600 flex items-center tracking-tighter">
-                  <span className="text-7xl mr-8">🏛️</span> 邏輯嚴密・精確命中
+                <div className="flex justify-center">
+                  <div className="text-5xl font-black text-emerald-600 flex items-center tracking-tighter">
+                    <span className="text-7xl mr-8">🏛️</span> 邏輯嚴密・精確命中
+                  </div>
                 </div>
-              ) : <CryingCat />}
+              ) : (
+                <div className="space-y-12">
+                  <div className="flex justify-center">
+                    <CryingCat />
+                  </div>
+                  {explanation && (
+                    <div className="bg-rose-50 border-2 border-rose-200 rounded-[3rem] p-12">
+                      <h4 className="text-xl font-black text-rose-900 mb-6">📖 正確選項解析</h4>
+                      <p className="text-lg text-rose-800 leading-relaxed font-semibold">{explanation}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </article>
 
-        {(answered || loadingAction) && (
-          <section className="space-y-16 animate-in slide-in-from-bottom-10 duration-700">
-            <div className="bg-white rounded-[6rem] p-24 shadow-5xl border-2 border-slate-100 relative overflow-hidden">
-              <div className="absolute -right-32 -bottom-32 w-96 h-96 bg-indigo-50 rounded-full opacity-30"></div>
-              <h3 className="text-5xl font-black mb-16 relative z-10 flex items-center tracking-tighter">
-                 <span className="mr-8 text-6xl text-indigo-600">📖</span> 專家判析精要
-              </h3>
-              
-              {loadingAction ? (
-                <div className="py-24 text-center">
-                  <div className="inline-block w-12 h-12 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin mb-6"></div>
-                  <div className="text-indigo-900 font-black text-3xl animate-pulse tracking-widest uppercase">法律資料庫分析中...</div>
-                </div>
-              ) : (
-                <div className="space-y-16 relative z-10">
-                  <div className="text-slate-800 leading-[2.6] text-3xl font-bold bg-slate-50/50 p-20 rounded-[4rem] border-2 border-slate-50 shadow-inner whitespace-pre-wrap">
-                    {explanation || "專家正在審理此題爭點..."}
-                  </div>
-                  
-                  <MemoSection 
-                    initialMemo={state.memos[currentQ.id]} 
-                    onSave={(m) => setState(p => ({ ...p, memos: { ...p.memos, [currentQ.id]: m } }))}
-                    onDelete={() => setState(p => { const n = { ...p.memos }; delete n[currentQ.id]; return { ...p, memos: n }; })}
-                  />
-                </div>
-              )}
-            </div>
-
+        {answered && (
+          <section className="space-y-8 animate-in slide-in-from-bottom-10 duration-700">
+            <MemoSection 
+              questionId={currentQ.id} 
+              memos={state.memos} 
+              onChange={(newMemos) => setState(prev => ({ ...prev, memos: newMemos }))}
+            />
             <button 
               onClick={nextQuestion} 
               className="w-full bg-slate-900 text-white py-14 rounded-[5rem] font-black text-5xl hover:bg-indigo-600 transition-all shadow-5xl active:scale-[0.98] tracking-widest uppercase"
@@ -536,39 +557,53 @@ export default function App() {
 
   if (state.status === 'RESULT') {
     const totalPossible = state.questions.reduce((acc, q) => acc + q.weight, 0);
+    const accuracy = state.questions.length > 0 ? Math.round((state.stats.correctCount / Math.max(state.stats.totalAnswered, state.questions.length)) * 100) : 0;
+    
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-10 animate-in zoom-in duration-700">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 p-10 animate-in zoom-in duration-700">
         <div className="max-w-5xl w-full bg-white rounded-[8rem] p-24 shadow-5xl text-center border-2 border-slate-100 relative overflow-hidden">
-          <div className="text-[14rem] mb-12">🎓</div>
-          <h2 className="text-8xl font-black text-slate-900 mb-12 tracking-tighter uppercase">階段測驗總結</h2>
+          <div className="text-[14rem] mb-12 animate-bounce">🎓</div>
+          <h2 className="text-8xl font-black text-slate-900 mb-6 tracking-tighter uppercase">階段測驗完成</h2>
+          <p className="text-indigo-600 font-black text-lg mb-16 tracking-widest uppercase">Final Assessment Report</p>
           
-          <div className="grid lg:grid-cols-2 gap-12 mb-20">
-            <div className="bg-slate-50 p-20 rounded-[6rem] border-2 border-slate-100 shadow-inner">
-              <div className="text-[15rem] font-black text-indigo-600 leading-none mb-6 tabular-nums">{state.score}</div>
-              <div className="text-[12px] text-slate-400 font-black uppercase tracking-[0.8em]">FINAL SCORE / {totalPossible}</div>
+          <div className="grid lg:grid-cols-3 gap-8 mb-20">
+            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-16 rounded-[4rem] border-2 border-indigo-300 shadow-lg">
+              <div className="text-indigo-600 text-6xl font-black leading-none mb-4 tabular-nums">{state.score}</div>
+              <div className="text-[10px] text-indigo-700 font-black uppercase tracking-[0.8em] mb-2">YOUR SCORE</div>
+              <div className="text-2xl font-black text-indigo-500">/ {totalPossible}</div>
             </div>
             
-            <div className="bg-indigo-900 p-20 rounded-[6rem] text-left text-white shadow-4xl relative overflow-hidden">
-              <div className="absolute bottom-0 right-0 p-10 text-indigo-800 opacity-40 text-8xl font-black">⚖️</div>
-              <h4 className="text-[12px] font-black uppercase tracking-[0.5em] mb-10 opacity-60">專家綜合診斷報告</h4>
-              <p className="text-2xl font-bold leading-[2] text-indigo-50 relative z-10">
-                {state.summaryText}
-              </p>
+            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-16 rounded-[4rem] border-2 border-emerald-300 shadow-lg flex flex-col justify-center">
+              <div className="text-emerald-600 text-6xl font-black mb-4">{accuracy}%</div>
+              <div className="text-[10px] text-emerald-700 font-black uppercase tracking-[0.8em]">正確率</div>
+            </div>
+
+            <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-16 rounded-[4rem] border-2 border-amber-300 shadow-lg flex flex-col justify-center">
+              <div className="text-amber-600 text-6xl font-black mb-4">{state.questions.length}</div>
+              <div className="text-[10px] text-amber-700 font-black uppercase tracking-[0.8em]">總題數</div>
             </div>
           </div>
+            
+          <div className="bg-indigo-900 p-12 rounded-[4rem] text-left text-white shadow-4xl relative overflow-hidden mb-16">
+            <div className="absolute bottom-0 right-0 p-8 text-indigo-800 opacity-40 text-7xl font-black">⚖️</div>
+            <h4 className="text-[12px] font-black uppercase tracking-[0.5em] mb-6 opacity-60">專家綜合診斷</h4>
+            <p className="text-xl font-bold leading-[2] text-indigo-50 relative z-10">
+              {state.summaryText}
+            </p>
+          </div>
 
-          <div className="grid grid-cols-2 gap-8">
+          <div className="grid grid-cols-2 gap-6">
             <button 
               onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))} 
-              className="bg-white border-2 border-slate-100 text-slate-900 py-10 rounded-[4rem] font-black text-2xl hover:bg-slate-50 transition-all active:scale-[0.98] shadow-xl tracking-widest uppercase"
+              className="bg-indigo-100 border-2 border-indigo-300 text-indigo-900 py-12 rounded-[3rem] font-black text-2xl hover:bg-indigo-200 transition-all active:scale-[0.98] shadow-lg tracking-widest uppercase"
             >
-              檢視數據趨勢
+              📊 數據分析
             </button>
             <button 
               onClick={forceResetToHome} 
-              className="bg-slate-900 text-white py-10 rounded-[4rem] font-black text-2xl hover:bg-indigo-600 transition-all active:scale-[0.98] shadow-5xl tracking-widest uppercase"
+              className="bg-slate-900 text-white py-12 rounded-[3rem] font-black text-2xl hover:bg-indigo-600 transition-all active:scale-[0.98] shadow-5xl tracking-widest uppercase"
             >
-              回到戰略中心
+              🚀 返回戰略
             </button>
           </div>
         </div>
