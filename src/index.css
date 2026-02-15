@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles (optional) */
+html, body, #root {
+  height: 100%;
+}
+
+/* safe font fallback */
+:root { --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+body { font-family: var(--font-sans); }
