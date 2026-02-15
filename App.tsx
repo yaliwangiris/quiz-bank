@@ -169,8 +169,28 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('law_quiz_memos', JSON.stringify(state.memos));
-    localStorage.setItem('law_quiz_stats', JSON.stringify(state.stats));
+    try {
+      localStorage.setItem('law_quiz_memos', JSON.stringify(state.memos));
+      localStorage.setItem('law_quiz_stats', JSON.stringify(state.stats));
+    } catch (error) {
+      if (error instanceof Error && error.name === 'QuotaExceededError') {
+        console.warn('LocalStorage 已滿，部分筆記可能未保存');
+        // 嘗試清除最舊的筆記
+        const memoEntries = Object.entries(state.memos);
+        if (memoEntries.length > 0) {
+          const [oldestId] = memoEntries[0];
+          const newMemos = { ...state.memos };
+          delete newMemos[oldestId];
+          try {
+            localStorage.setItem('law_quiz_memos', JSON.stringify(newMemos));
+          } catch (e) {
+            console.error('無法清理筆記空間:', e);
+          }
+        }
+      } else {
+        console.error('保存到 LocalStorage 失敗:', error);
+      }
+    }
   }, [state.memos, state.stats]);
 
   const handleExit = () => {

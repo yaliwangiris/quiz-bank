@@ -11,7 +11,12 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ stats, memos = {}, onBack }) => {
   const [expandedMemo, setExpandedMemo] = useState<string | null>(null);
   const [showAllMemos, setShowAllMemos] = useState(false);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   
+  const handleImageError = (memoId: string) => {
+    setFailedImages(prev => new Set([...prev, memoId]));
+  };
+
   const accuracy = stats.totalAnswered > 0 
     ? Math.round((stats.correctCount / stats.totalAnswered) * 100) 
     : 0;
@@ -150,7 +155,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, memos = {}, onBack 
                         
                         {expandedMemo === id && memo.imageUrl && (
                           <div className="mt-4 pt-4 border-t border-indigo-200">
-                            <img src={memo.imageUrl} alt="Note" className="max-w-full rounded-lg border shadow-md" />
+                            {!failedImages.has(id) ? (
+                              <img 
+                                src={memo.imageUrl} 
+                                alt="Note" 
+                                className="max-w-full rounded-lg border shadow-md" 
+                                onError={() => handleImageError(id)}
+                              />
+                            ) : (
+                              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm">
+                                圖片加載失敗：可能檔案過大或已損壞
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -176,8 +192,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, memos = {}, onBack 
                         {memo.text && (
                           <p className="text-sm text-slate-800 mb-2 line-clamp-2 font-medium">{memo.text}</p>
                         )}
-                        {memo.imageUrl && (
-                          <img src={memo.imageUrl} alt="Note" className="max-h-20 rounded border" />
+                        {memo.imageUrl && !failedImages.has(id) && (
+                          <img 
+                            src={memo.imageUrl} 
+                            alt="Note" 
+                            className="max-h-20 rounded border" 
+                            onError={() => handleImageError(id)}
+                          />
                         )}
                       </div>
                     ))}

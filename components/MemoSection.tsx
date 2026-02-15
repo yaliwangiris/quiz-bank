@@ -12,6 +12,7 @@ export const MemoSection: React.FC<MemoSectionProps> = ({ questionId, memos, onC
   const [text, setText] = useState('');
   const [image, setImage] = useState('');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [failedImage, setFailedImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentMemo = memos[questionId];
@@ -20,14 +21,28 @@ export const MemoSection: React.FC<MemoSectionProps> = ({ questionId, memos, onC
     setText(currentMemo?.text || '');
     setImage(currentMemo?.imageUrl || '');
     setIsCollapsed(!!currentMemo);
+    setFailedImage(false);
   }, [questionId, currentMemo]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // 限制檔案大小為 1MB
+      if (file.size > 1024 * 1024) {
+        alert('圖片太大，請上傳小於 1MB 的圖片');
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImage(reader.result as string);
+        const result = reader.result as string;
+        // 如果 base64 太大（>500KB字符），提示用戶
+        if (result.length > 500000) {
+          alert('圖片仍然較大，建議裁剪或壓縮後重新上傳');
+        }
+        setImage(result);
+      };
+      reader.onerror = () => {
+        alert('圖片讀取失敗，請重試');
       };
       reader.readAsDataURL(file);
     }
@@ -38,16 +53,21 @@ export const MemoSection: React.FC<MemoSectionProps> = ({ questionId, memos, onC
       alert('請輸入筆記或上傳照片');
       return;
     }
-    const updatedMemos = {
-      ...memos,
-      [questionId]: {
-        text,
-        imageUrl: image,
-        timestamp: Date.now(),
-      }
-    };
-    onChange(updatedMemos);
-    setIsCollapsed(true);
+    try {
+      const updatedMemos = {
+        ...memos,
+        [questionId]: {
+          text,
+          imageUrl: image,
+          timestamp: Date.now(),
+        }
+      };
+      onChange(updatedMemos);
+      setIsCollapsed(true);
+    } catch (error) {
+      console.error('保存筆記失敗:', error);
+      alert('保存筆記失敗，請檢查你的瀏覽器存儲空間');
+    }
   };
 
   const handleDelete = () => {
@@ -72,8 +92,18 @@ export const MemoSection: React.FC<MemoSectionProps> = ({ questionId, memos, onC
             {currentMemo.text && (
               <p className="text-sm text-indigo-800 mb-3 line-clamp-3">{currentMemo.text}</p>
             )}
-            {currentMemo.imageUrl && (
-              <img src={currentMemo.imageUrl} alt="Memo" className="max-h-32 rounded-lg border shadow-sm mb-3" />
+            {currentMemo.imageUrl && !failedImage && (
+              <img 
+                src={currentMemo.imageUrl} 
+                alt="Memo" 
+                className="max-h-32 rounded-lg border shadow-sm mb-3" 
+                onError={() => setFailedImage(true)}
+              />
+            )}
+            {failedImage && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-xs mb-3">
+                圖片加載失敗：可能檔案過大或已損壞
+              </div>
             )}
             <div className="text-xs text-indigo-600 opacity-70">
               保存於 {new Date(currentMemo.timestamp).toLocaleString()}
@@ -123,13 +153,29 @@ export const MemoSection: React.FC<MemoSectionProps> = ({ questionId, memos, onC
       
       {image && (
         <div className="relative inline-block group">
-          <img src={image} alt="Memo" className="max-h-40 rounded-lg border-2 border-indigo-300 shadow-md" />
-          <button 
-            onClick={() => setImage('')}
-            className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors font-bold"
-          >
-            ✕
-          </button>
+          {!failedImage ? (
+            <img 
+              src={image} 
+              alt="Memo" 
+              className="max-h-40 rounded-lg border-2 border-indigo-300 shadow-md" 
+              onError={() => setFailedImage(true)}
+            />
+          ) : (
+            <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg text-yellow-700 text-sm">
+              圖片預覽失敗
+            </div>
+          )}
+          {!failedImage && (
+            <button 
+              onClick={() => {
+                setImage('');
+                setFailedImage(false);
+              }}
+              className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors font-bold"
+            >
+              ✕
+            </button>
+          )}
         </div>
       )}
 
