@@ -403,65 +403,65 @@ export default function App() {
       );
     }
     return (
-      <div className="max-w-6xl mx-auto px-6 py-16 animate-in fade-in duration-700">
-        <header className="text-center mb-16 relative">
-          <button onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))} className="absolute top-0 right-0 p-4 bg-white rounded-3xl border shadow-lg hover:scale-105 transition-all group">
-            <span className="text-2xl">📊</span>
-            <span className="text-[10px] font-black uppercase ml-2 text-slate-400 group-hover:text-indigo-600">戰力分析</span>
+      <div className="w-full min-h-screen bg-gradient-to-b from-slate-50 to-indigo-50 px-3 sm:px-6 py-4 sm:py-8 md:py-16 animate-in fade-in duration-700 overflow-x-hidden">
+        <header className="text-center mb-4 sm:mb-8 md:mb-16 relative max-w-6xl mx-auto">
+          <button onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))} className="absolute top-0 right-0 p-2 sm:p-3 md:p-4 bg-white rounded-xl sm:rounded-2xl md:rounded-3xl border shadow-md sm:shadow-lg hover:scale-105 transition-all group">
+            <span className="text-lg sm:text-xl md:text-2xl">📊</span>
+            <span className="text-[8px] sm:text-[10px] font-black uppercase text-slate-400 group-hover:text-indigo-600 block mt-0.5">戰力分析</span>
           </button>
-          <h1 className="text-4xl sm:text-6xl md:text-9xl font-black text-slate-900 mb-10 tracking-tighter leading-none">律師一試<br/><span className="text-indigo-600">考題專家</span></h1>
-          <div className="mt-6 text-center">
+          <h1 className="text-2xl sm:text-4xl md:text-6xl lg:text-9xl font-black text-slate-900 mb-3 sm:mb-6 md:mb-10 tracking-tighter leading-snug">律師一試<br/><span className="text-indigo-600">考題專家</span></h1>
+          <div className="mt-2 sm:mt-4 md:mt-6 text-center">
             {bank.length > 0 ? (
-              <div className="text-xl font-black text-emerald-600">✓ 題庫已載入: {bank.length} 題</div>
+              <div className="text-xs sm:text-base md:text-xl font-black text-emerald-600">✓ 題庫已載入: {bank.length} 題</div>
             ) : (
-              <div className="text-xl font-black text-rose-500 animate-pulse">⏳ 題庫載入中...</div>
+              <div className="text-xs sm:text-base md:text-xl font-black text-rose-500 animate-pulse">⏳ 題庫載入中...</div>
             )}
           </div>
         </header>
 
-        <div className="grid lg:grid-cols-3 gap-16">
-          <div className="lg:col-span-2 space-y-16">
-            <section className="bg-slate-900 rounded-[5rem] p-16 text-white shadow-4xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-12 text-indigo-500 opacity-10 text-9xl font-black">⚖️</div>
-              <h2 className="text-xl font-black mb-12 flex items-center">
-                <span className="w-3 h-3 rounded-full bg-indigo-500 mr-4"></span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-12 lg:gap-16 max-w-6xl mx-auto">
+          <div className="lg:col-span-2 space-y-3 sm:space-y-6 md:space-y-10 lg:space-y-16">
+            <section className="bg-slate-900 rounded-lg sm:rounded-2xl md:rounded-3xl lg:rounded-[5rem] p-4 sm:p-8 md:p-12 lg:p-16 text-white shadow-4xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-3 sm:p-6 md:p-8 lg:p-12 text-indigo-500 opacity-10 text-3xl sm:text-6xl md:text-8xl lg:text-9xl font-black">⚖️</div>
+              <h2 className="text-sm sm:text-lg md:text-xl font-black mb-3 sm:mb-6 md:mb-10 lg:mb-12 flex items-center">
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 md:w-3 md:h-3 rounded-full bg-indigo-500 mr-2 sm:mr-3"></span>
                 真題精確檢索系統
               </h2>
               
-              <div className="mb-12 p-8 bg-slate-800 rounded-3xl border border-slate-700">
-                <label className="text-[10px] font-black text-indigo-400 uppercase mb-4 block">按 Question ID 搜尋</label>
-                <div className="flex gap-4">
-                  <input type="text" value={searchId} onChange={e => setSearchId(e.target.value)} placeholder="例如: 108-1301-001" className="flex-1 bg-slate-700 border-2 border-slate-600 rounded-3xl p-5 text-xl font-black focus:border-indigo-500 outline-none placeholder:text-slate-500" />
-                  <button onClick={() => handleRetrieveQuestion(true)} disabled={bank.length === 0} className="bg-indigo-600 px-10 rounded-3xl font-black hover:bg-indigo-500 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">檢索</button>
+              <div className="mb-3 sm:mb-6 md:mb-8 lg:mb-12 p-3 sm:p-5 md:p-7 lg:p-8 bg-slate-800 rounded-xl sm:rounded-2xl border border-slate-700">
+                <label className="text-[7px] sm:text-[9px] md:text-[10px] font-black text-indigo-400 uppercase mb-2 sm:mb-3 block">按 Question ID 搜尋</label>
+                <div className="flex gap-2 sm:gap-3">
+                  <input type="text" value={searchId} onChange={e => setSearchId(e.target.value)} placeholder="例如: 108-1301-001" className="flex-1 bg-slate-700 border-2 border-slate-600 rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 text-sm sm:text-base md:text-lg font-black focus:border-indigo-500 outline-none placeholder:text-slate-500 text-white" />
+                  <button onClick={() => handleRetrieveQuestion(true)} disabled={bank.length === 0} className="bg-indigo-600 px-3 sm:px-6 md:px-8 lg:px-10 py-2 sm:py-3 md:py-4 lg:py-5 rounded-lg sm:rounded-xl font-black text-xs sm:text-sm md:text-base hover:bg-indigo-500 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">檢索</button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase">年度</label>
-                  <input type="text" value={searchYear} onChange={e => setSearchYear(e.target.value)} placeholder="108" className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-center font-black focus:border-indigo-500 outline-none" />
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-5 md:mb-8">
+                <div className="space-y-1">
+                  <label className="text-[6px] sm:text-[8px] md:text-[10px] font-black text-slate-400 uppercase">年度</label>
+                  <input type="text" value={searchYear} onChange={e => setSearchYear(e.target.value)} placeholder="108" className="w-full bg-slate-800 border-2 border-slate-700 rounded-lg sm:rounded-xl p-2 text-xs sm:text-sm md:text-base text-center font-black focus:border-indigo-500 outline-none text-white" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase">科目代碼</label>
-                  <input type="text" value={searchCode} onChange={e => setSearchCode(e.target.value)} placeholder="1301" className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-center font-black focus:border-indigo-500 outline-none" />
+                <div className="space-y-1">
+                  <label className="text-[6px] sm:text-[8px] md:text-[10px] font-black text-slate-400 uppercase">科目代碼</label>
+                  <input type="text" value={searchCode} onChange={e => setSearchCode(e.target.value)} placeholder="1301" className="w-full bg-slate-800 border-2 border-slate-700 rounded-lg sm:rounded-xl p-2 text-xs sm:text-sm md:text-base text-center font-black focus:border-indigo-500 outline-none text-white" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase">題號</label>
-                  <input type="text" value={searchNo} onChange={e => setSearchNo(e.target.value)} placeholder="1" className="w-full bg-slate-800 border-2 border-slate-700 rounded-2xl p-4 text-center font-black focus:border-indigo-500 outline-none" />
+                <div className="space-y-1">
+                  <label className="text-[6px] sm:text-[8px] md:text-[10px] font-black text-slate-400 uppercase">題號</label>
+                  <input type="text" value={searchNo} onChange={e => setSearchNo(e.target.value)} placeholder="1" className="w-full bg-slate-800 border-2 border-slate-700 rounded-lg sm:rounded-xl p-2 text-xs sm:text-sm md:text-base text-center font-black focus:border-indigo-500 outline-none text-white" />
                 </div>
               </div>
-              <button onClick={() => handleRetrieveQuestion(false)} disabled={bank.length === 0} className="w-full bg-slate-700 py-6 rounded-3xl font-black text-lg border-2 border-indigo-900/50 hover:bg-indigo-900 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">由 Metadata 定位題目</button>
+              <button onClick={() => handleRetrieveQuestion(false)} disabled={bank.length === 0} className="w-full bg-slate-700 py-2 sm:py-3 md:py-5 lg:py-6 rounded-lg sm:rounded-xl font-black text-xs sm:text-sm md:text-lg border-2 border-indigo-900/50 hover:bg-indigo-900 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">由 Metadata 定位題目</button>
             </section>
 
-            <div className="space-y-10">
-              <h2 className="text-xl font-black text-slate-900 uppercase tracking-widest border-b-4 border-slate-100 pb-4">全真模擬測驗</h2>
-              <div className="grid md:grid-cols-2 gap-10">
+            <div className="space-y-2 sm:space-y-4 md:space-y-8 lg:space-y-10">
+              <h2 className="text-xs sm:text-base md:text-lg lg:text-xl font-black text-slate-900 uppercase tracking-widest border-b-4 border-slate-100 pb-2 sm:pb-3">全真模擬測驗</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-5 md:gap-8 lg:gap-10">
                 {Object.keys(Category).map(key => {
                    const cat = Category[key as keyof typeof Category];
                    return (
-                    <button key={cat} onClick={() => startMockExam(cat)} disabled={bank.length === 0} className="bg-white border-2 border-slate-100 p-14 rounded-[5rem] text-left hover:border-indigo-600 transition-all shadow-xl hover:shadow-4xl group disabled:opacity-50 disabled:cursor-not-allowed">
-                      <h3 className="text-2xl font-black mb-6 group-hover:text-indigo-600 transition-colors">{cat}</h3>
-                      <div className="text-[10px] font-bold bg-slate-100 text-slate-400 px-4 py-1.5 rounded-full inline-block uppercase tracking-widest">300 Points Mock</div>
+                    <button key={cat} onClick={() => startMockExam(cat)} disabled={bank.length === 0} className="bg-white border-2 border-slate-100 p-4 sm:p-8 md:p-10 lg:p-14 rounded-lg sm:rounded-2xl md:rounded-3xl lg:rounded-[5rem] text-left hover:border-indigo-600 transition-all shadow-xl hover:shadow-4xl group disabled:opacity-50 disabled:cursor-not-allowed">
+                      <h3 className="text-sm sm:text-lg md:text-xl lg:text-2xl font-black mb-2 sm:mb-4 md:mb-6 group-hover:text-indigo-600 transition-colors line-clamp-2">{cat}</h3>
+                      <div className="text-[7px] sm:text-[9px] md:text-[10px] font-bold bg-slate-100 text-slate-400 px-2 sm:px-3 md:px-4 py-1 rounded-full inline-block uppercase tracking-tight md:tracking-widest">300 Points Mock</div>
                     </button>
                    );
                 })}
@@ -469,11 +469,11 @@ export default function App() {
             </div>
           </div>
 
-          <aside className="space-y-12">
-            <div className="bg-indigo-600 rounded-[5rem] p-16 text-white shadow-4xl relative overflow-hidden group cursor-pointer" onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))}>
-              <h3 className="text-2xl font-black mb-4">數據總結</h3>
-              <p className="text-indigo-100 font-bold mb-8">分析各科目正確率，定位學習弱點。</p>
-              <div className="bg-white/20 px-8 py-3 rounded-full inline-block font-black text-[10px] tracking-widest uppercase">Go to Dashboard</div>
+          <aside className="space-y-3 sm:space-y-6 md:space-y-10 lg:space-y-12">
+            <div className="bg-indigo-600 rounded-lg sm:rounded-2xl md:rounded-3xl lg:rounded-[5rem] p-4 sm:p-8 md:p-12 lg:p-16 text-white shadow-4xl relative overflow-hidden group cursor-pointer" onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))}>
+              <h3 className="text-sm sm:text-lg md:text-xl lg:text-2xl font-black mb-2 sm:mb-3 md:mb-4 lg:mb-4">數據總結</h3>
+              <p className="text-indigo-100 font-bold text-xs sm:text-sm md:text-base lg:text-base mb-2 sm:mb-4 md:mb-6 lg:mb-8">分析各科目正確率，定位學習弱點。</p>
+              <div className="bg-white/20 px-3 sm:px-5 md:px-6 lg:px-8 py-1.5 sm:py-2 md:py-2 lg:py-3 rounded-full inline-block font-black text-[7px] sm:text-[8px] md:text-[9px] lg:text-[10px] tracking-tight md:tracking-widest uppercase">Go to Dashboard</div>
             </div>
           </aside>
         </div>
