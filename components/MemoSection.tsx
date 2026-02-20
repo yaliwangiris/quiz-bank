@@ -83,8 +83,8 @@ export const MemoSection: React.FC<MemoSectionProps> = ({ questionId, memos, onC
 
   if (isCollapsed && currentMemo) {
     return (
-      <div className="mt-6 p-6 border-2 border-dashed border-indigo-300 rounded-2xl bg-indigo-50">
-        <div className="flex justify-between items-start">
+      <div className="mt-6 p-4 sm:p-6 border-2 border-dashed border-indigo-300 rounded-2xl bg-indigo-50">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           <div className="flex-1">
             <h4 className="font-bold text-indigo-900 flex items-center text-sm mb-3">
               <span className="mr-2 text-lg">💡</span> 已存檔筆記
@@ -109,16 +109,16 @@ export const MemoSection: React.FC<MemoSectionProps> = ({ questionId, memos, onC
               保存於 {new Date(currentMemo.timestamp).toLocaleString()}
             </div>
           </div>
-          <div className="flex gap-2 ml-4">
+          <div className="flex gap-2 sm:ml-4 w-full sm:w-auto">
             <button 
               onClick={() => setIsCollapsed(false)}
-              className="text-xs font-bold text-indigo-600 hover:text-indigo-700 px-3 py-1 rounded hover:bg-indigo-100 transition"
+              className="text-xs font-bold text-indigo-600 hover:text-indigo-700 px-3 py-2 rounded hover:bg-indigo-100 transition flex-1 sm:flex-none"
             >
               編輯
             </button>
             <button 
               onClick={handleDelete}
-              className="text-xs font-bold text-red-500 hover:text-red-700 px-3 py-1 rounded hover:bg-red-50 transition"
+              className="text-xs font-bold text-red-500 hover:text-red-700 px-3 py-2 rounded hover:bg-red-50 transition flex-1 sm:flex-none"
             >
               刪除
             </button>
@@ -179,10 +179,10 @@ export const MemoSection: React.FC<MemoSectionProps> = ({ questionId, memos, onC
         </div>
       )}
 
-      <div className="flex justify-between items-center pt-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2">
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="text-slate-600 text-sm font-medium hover:text-indigo-600 flex items-center transition-colors px-3 py-1 rounded hover:bg-white"
+          className="text-slate-600 text-sm font-medium hover:text-indigo-600 flex items-center transition-colors px-3 py-2 rounded hover:bg-white"
         >
           <span className="mr-1">📷</span> 添加照片
         </button>
@@ -193,18 +193,18 @@ export const MemoSection: React.FC<MemoSectionProps> = ({ questionId, memos, onC
           accept="image/*" 
           onChange={handleImageChange}
         />
-        <div className="space-x-2">
+        <div className="flex w-full sm:w-auto gap-2 sm:gap-2">
           {currentMemo && (
             <button
               onClick={handleDelete}
-              className="px-4 py-2 rounded-lg text-sm font-bold text-red-600 hover:bg-red-50 transition-colors"
+              className="px-4 py-2 rounded-lg text-sm font-bold text-red-600 hover:bg-red-50 transition-colors flex-1 sm:flex-none"
             >
               刪除筆記
             </button>
           )}
           <button
             onClick={handleSave}
-            className="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-95"
+            className="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-95 flex-1 sm:flex-none"
           >
             儲存筆記
           </button>

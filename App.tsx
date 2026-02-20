@@ -403,79 +403,130 @@ export default function App() {
       );
     }
     return (
-      <div className="w-full min-h-screen bg-gradient-to-b from-slate-50 to-indigo-50 px-1.5 py-2 animate-in fade-in duration-700 overflow-x-hidden">
-        <header className="text-center mb-2 relative w-full">
-          <button onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))} className="absolute top-0 right-0 p-1 bg-white rounded-lg border shadow-sm hover:scale-105 transition-all group">
-            <span className="text-sm">📊</span>
-            <span className="text-[5px] font-black uppercase text-slate-400 group-hover:text-indigo-600 block mt-0.5">戰力分析</span>
-          </button>
-          <h1 className="text-sm font-black text-slate-900 mb-1 tracking-tighter leading-snug break-words">律師一試<br/><span className="text-indigo-600">考題專家</span></h1>
-          <div className="mt-1 text-center">
-            {bank.length > 0 ? (
-              <div className="text-[8px] font-black text-emerald-600">✓ {bank.length} 題</div>
-            ) : (
-              <div className="text-[8px] font-black text-rose-500 animate-pulse">⏳ 載入中...</div>
-            )}
-          </div>
-        </header>
+      <div className="w-full min-h-screen bg-gradient-to-b from-slate-50 to-indigo-50 px-4 sm:px-6 py-4 sm:py-8 animate-in fade-in duration-700 overflow-x-hidden">
+        <div className="max-w-6xl mx-auto">
+          <header className="text-center mb-6 sm:mb-10 relative w-full">
+            <button
+              onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))}
+              className="absolute top-0 right-0 px-3 py-2 sm:px-4 sm:py-3 bg-white rounded-xl border border-slate-200 shadow-sm hover:scale-105 transition-all group"
+            >
+              <span className="text-base sm:text-lg">📊</span>
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-wide text-slate-400 group-hover:text-indigo-600 block mt-1">戰力分析</span>
+            </button>
+            <h1 className="text-3xl sm:text-5xl font-black text-slate-900 mb-2 sm:mb-3 tracking-tighter leading-tight break-words">
+              律師一試<br /><span className="text-indigo-600">考題專家</span>
+            </h1>
+            <div className="mt-2 text-center">
+              {bank.length > 0 ? (
+                <div className="text-sm sm:text-base font-black text-emerald-600">✓ 題庫已載入 {bank.length} 題</div>
+              ) : (
+                <div className="text-sm sm:text-base font-black text-rose-500 animate-pulse">⏳ 題庫載入中...</div>
+              )}
+            </div>
+          </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-1 w-full px-1">
-          <div className="lg:col-span-2 space-y-1">
-            <section className="bg-slate-900 rounded-lg p-1.5 text-white shadow-4xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-1 text-indigo-500 opacity-10 text-lg font-black">⚖️</div>
-              <h2 className="text-[9px] font-black mb-1 flex items-center">
-                <span className="w-0.5 h-0.5 rounded-full bg-indigo-500 mr-0.5"></span>
-                檢索
-              </h2>
-              
-              <div className="mb-1 p-1 bg-slate-800 rounded-lg border border-slate-700">
-                <label className="text-[5px] font-black text-indigo-400 uppercase mb-0.5 block">ID查詢</label>
-                <div className="flex gap-0.5">
-                  <input type="text" value={searchId} onChange={e => setSearchId(e.target.value)} placeholder="108-1301" className="flex-1 bg-slate-700 border border-slate-600 rounded-lg p-0.5 text-[8px] font-black focus:border-indigo-500 outline-none text-white" />
-                  <button onClick={() => handleRetrieveQuestion(true)} disabled={bank.length === 0} className="bg-indigo-600 px-1 py-0.5 rounded-lg font-black text-[8px] hover:bg-indigo-500 active:scale-95 disabled:opacity-50">搜</button>
-                </div>
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+              <section className="bg-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-white shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-3 sm:p-4 text-indigo-500 opacity-10 text-2xl sm:text-4xl font-black">⚖️</div>
+                <h2 className="text-sm sm:text-base font-black mb-3 sm:mb-4 flex items-center">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 mr-2"></span>
+                  題目檢索
+                </h2>
 
-              <div className="grid grid-cols-3 gap-0.5 mb-1">
-                <div className="">
-                  <label className="text-[5px] font-black text-slate-400 uppercase block">年度</label>
-                  <input type="text" value={searchYear} onChange={e => setSearchYear(e.target.value)} placeholder="108" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-0.5 text-[8px] text-center font-black focus:border-indigo-500 outline-none text-white" />
-                </div>
-                <div className="">
-                  <label className="text-[5px] font-black text-slate-400 uppercase block">代</label>
-                  <input type="text" value={searchCode} onChange={e => setSearchCode(e.target.value)} placeholder="1301" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-0.5 text-[8px] text-center font-black focus:border-indigo-500 outline-none text-white" />
-                </div>
-                <div className="">
-                  <label className="text-[5px] font-black text-slate-400 uppercase block">題</label>
-                  <input type="text" value={searchNo} onChange={e => setSearchNo(e.target.value)} placeholder="1" className="w-full bg-slate-800 border border-slate-700 rounded-lg p-0.5 text-[8px] text-center font-black focus:border-indigo-500 outline-none text-white" />
-                </div>
-              </div>
-              <button onClick={() => handleRetrieveQuestion(false)} disabled={bank.length === 0} className="w-full bg-slate-700 py-0.5 rounded-lg font-black text-[8px] border border-indigo-900/50 hover:bg-indigo-900 active:scale-95 disabled:opacity-50">查詢</button>
-            </section>
-
-            <div className="space-y-1">
-              <h2 className="text-[8px] font-black text-slate-900 uppercase border-b-2 border-slate-100 pb-0.5">全真模擬測驗</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                {Object.keys(Category).map(key => {
-                   const cat = Category[key as keyof typeof Category];
-                   return (
-                    <button key={cat} onClick={() => startMockExam(cat)} disabled={bank.length === 0} className="bg-white border border-slate-100 p-1 rounded-lg hover:border-indigo-600 shadow-md hover:shadow-lg group disabled:opacity-50">
-                      <h3 className="text-[8px] font-black mb-0.5 group-hover:text-indigo-600 line-clamp-2 text-left">{cat}</h3>
-                      <div className="text-[5px] font-bold bg-slate-100 text-slate-400 px-1 py-0.5 rounded-full inline-block uppercase">測驗</div>
+                <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-slate-800 rounded-xl border border-slate-700">
+                  <label className="text-[11px] sm:text-xs font-black text-indigo-400 uppercase mb-2 block tracking-wide">ID 查詢</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={searchId}
+                      onChange={e => setSearchId(e.target.value)}
+                      placeholder="108-1301-001"
+                      className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm sm:text-base font-bold focus:border-indigo-500 outline-none text-white"
+                    />
+                    <button
+                      onClick={() => handleRetrieveQuestion(true)}
+                      disabled={bank.length === 0}
+                      className="bg-indigo-600 px-4 sm:px-5 py-2 rounded-lg font-black text-sm sm:text-base hover:bg-indigo-500 active:scale-95 disabled:opacity-50"
+                    >
+                      檢索
                     </button>
-                   );
-                })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
+                  <div>
+                    <label className="text-[11px] sm:text-xs font-black text-slate-400 uppercase block mb-1">年度</label>
+                    <input
+                      type="text"
+                      value={searchYear}
+                      onChange={e => setSearchYear(e.target.value)}
+                      placeholder="108"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm sm:text-base text-center font-bold focus:border-indigo-500 outline-none text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] sm:text-xs font-black text-slate-400 uppercase block mb-1">科目代碼</label>
+                    <input
+                      type="text"
+                      value={searchCode}
+                      onChange={e => setSearchCode(e.target.value)}
+                      placeholder="1301"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm sm:text-base text-center font-bold focus:border-indigo-500 outline-none text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] sm:text-xs font-black text-slate-400 uppercase block mb-1">題號</label>
+                    <input
+                      type="text"
+                      value={searchNo}
+                      onChange={e => setSearchNo(e.target.value)}
+                      placeholder="1"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm sm:text-base text-center font-bold focus:border-indigo-500 outline-none text-white"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleRetrieveQuestion(false)}
+                  disabled={bank.length === 0}
+                  className="w-full bg-slate-700 py-2.5 sm:py-3 rounded-lg font-black text-sm sm:text-base border border-indigo-900/50 hover:bg-indigo-900 active:scale-95 disabled:opacity-50"
+                >
+                  以年度／代碼／題號查詢
+                </button>
+              </section>
+
+              <div className="space-y-3 sm:space-y-4">
+                <h2 className="text-sm sm:text-base font-black text-slate-900 uppercase border-b-2 border-slate-200 pb-2">全真模擬測驗</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
+                  {Object.keys(Category).map(key => {
+                    const cat = Category[key as keyof typeof Category];
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => startMockExam(cat)}
+                        disabled={bank.length === 0}
+                        className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl hover:border-indigo-600 shadow-sm hover:shadow-md group disabled:opacity-50 text-left"
+                      >
+                        <h3 className="text-sm sm:text-base font-black mb-2 group-hover:text-indigo-600 line-clamp-2">{cat}</h3>
+                        <div className="text-[11px] sm:text-xs font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-full inline-block uppercase">開始測驗</div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
 
-          <aside className="space-y-1">
-            <div className="bg-indigo-600 rounded-lg p-1.5 text-white shadow-3xl cursor-pointer hover:shadow-lg" onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))}>
-              <h3 className="text-[8px] font-black mb-0.5">數據總結</h3>
-              <p className="text-indigo-100 font-bold text-[6px] mb-1">定位學習弱點</p>
-              <div className="bg-white/20 px-1.5 py-0.5 rounded-full inline-block font-black text-[5px] uppercase">進入</div>
-            </div>
-          </aside>
+            <aside className="space-y-3 sm:space-y-4">
+              <div
+                className="bg-indigo-600 rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-white shadow-xl cursor-pointer hover:shadow-2xl transition-all"
+                onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))}
+              >
+                <h3 className="text-lg sm:text-xl font-black mb-1">數據總結</h3>
+                <p className="text-indigo-100 font-bold text-sm sm:text-base mb-3">快速查看弱點與學習趨勢</p>
+                <div className="bg-white/20 px-3 py-1.5 rounded-full inline-block font-black text-xs sm:text-sm uppercase tracking-wide">立即前往</div>
+              </div>
+            </aside>
+          </div>
         </div>
       </div>
     );
@@ -510,11 +561,11 @@ export default function App() {
 
           <h2 className="text-base sm:text-2xl md:text-4xl text-slate-800 font-bold leading-[1.8] mb-8 sm:mb-20 tracking-tight">{currentQ.content}</h2>
           
-          <div className="grid gap-4 sm:gap-6 md:gap-8">
+          <div className="grid gap-3 sm:gap-6 md:gap-8">
             {currentQ.options.map((opt) => {
               const isSelected = state.answers[currentQ.id] === opt.id;
               const isCorrect = currentCorrectIds.includes(opt.id);
-              let cls = "w-full text-left p-4 sm:p-8 md:p-12 rounded-[3.5rem] border-4 transition-all flex items-start group shadow-lg ";
+              let cls = "w-full text-left p-3 sm:p-8 md:p-12 rounded-2xl sm:rounded-[3rem] border-2 sm:border-4 transition-all flex items-start group shadow-md sm:shadow-lg ";
               if (!answered) cls += "bg-slate-50 border-slate-50 hover:border-indigo-600 hover:bg-white active:scale-[0.98]";
               else if (isCorrect) cls += "border-emerald-500 bg-emerald-50 text-emerald-900 ring-[16px] ring-emerald-500/10";
               else if (isSelected) cls += "border-rose-500 bg-rose-50 text-rose-900 opacity-90";
@@ -522,17 +573,17 @@ export default function App() {
 
               return (
                 <button key={opt.id} disabled={answered || loadingAction} onClick={() => handleSelectOption(opt.id)} className={cls}>
-                  <div className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 rounded-3xl flex items-center justify-center mr-4 sm:mr-6 md:mr-10 text-lg sm:text-2xl md:text-3xl font-black transition-all ${answered && isCorrect ? 'bg-emerald-500 text-white' : 'bg-white shadow group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                  <div className={`flex-shrink-0 w-9 h-9 sm:w-12 sm:h-12 md:w-16 md:h-16 rounded-2xl sm:rounded-3xl flex items-center justify-center mr-3 sm:mr-6 md:mr-10 text-base sm:text-2xl md:text-3xl font-black transition-all ${answered && isCorrect ? 'bg-emerald-500 text-white' : 'bg-white shadow group-hover:bg-indigo-600 group-hover:text-white'}`}>
                     {opt.label}
                   </div>
-                  <span className="font-bold text-base sm:text-lg md:text-2xl leading-relaxed pt-3">{opt.content}</span>
+                  <span className="font-bold text-sm sm:text-lg md:text-2xl leading-relaxed pt-2 sm:pt-3">{opt.content}</span>
                 </button>
               );
             })}
           </div>
 
           {feedback !== 'NONE' && (
-            <div className="mt-24 pt-20 border-t-2 border-slate-50 animate-in zoom-in duration-500">
+            <div className="mt-10 sm:mt-24 pt-8 sm:pt-20 border-t-2 border-slate-50 animate-in zoom-in duration-500">
               {feedback === 'CORRECT' ? (
                 <div className="flex justify-center">
                   <div className="text-5xl font-black text-emerald-600 flex items-center tracking-tighter">
@@ -581,7 +632,7 @@ export default function App() {
     
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 p-4 sm:p-8 md:p-10 animate-in zoom-in duration-700">
-        <div className="max-w-5xl w-full bg-white rounded-[6rem] sm:rounded-[8rem] p-8 sm:p-16 md:p-24 shadow-5xl text-center border-2 border-slate-100 relative overflow-hidden">
+        <div className="max-w-5xl w-full bg-white rounded-[2rem] sm:rounded-[6rem] md:rounded-[8rem] p-5 sm:p-16 md:p-24 shadow-5xl text-center border-2 border-slate-100 relative overflow-hidden">
           <div className="text-[6rem] sm:text-[10rem] md:text-[14rem] mb-6 sm:mb-10 md:mb-12 animate-bounce">🎓</div>
           <h2 className="text-3xl sm:text-5xl md:text-8xl font-black text-slate-900 mb-4 md:mb-6 tracking-tighter uppercase">階段測驗完成</h2>
           <p className="text-indigo-600 font-black text-xs sm:text-base md:text-lg mb-8 md:mb-16 tracking-widest uppercase">Final Assessment Report</p>
@@ -612,7 +663,7 @@ export default function App() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
             <button 
               onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))} 
               className="bg-indigo-100 border-2 border-indigo-300 text-indigo-900 py-6 sm:py-8 md:py-12 rounded-[2rem] sm:rounded-[3rem] font-black text-sm sm:text-lg md:text-2xl hover:bg-indigo-200 transition-all active:scale-[0.98] shadow-lg tracking-widest uppercase"
