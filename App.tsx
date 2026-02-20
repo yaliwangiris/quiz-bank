@@ -367,9 +367,9 @@ export default function App() {
   if (state.status === 'IDLE') {
     if (simpleMode) {
       return (
-        <div className="max-w-4xl mx-auto px-6 py-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
           <header className="text-center mb-8">
-            <h1 className="text-6xl font-black text-slate-900 mb-4">律師一試 - 簡化檢視</h1>
+            <h1 className="text-3xl sm:text-6xl font-black text-slate-900 mb-4">律師一試 - 簡化檢視</h1>
             <div className="mb-4">
               <button onClick={() => setSimpleMode(false)} className="px-6 py-2 bg-slate-900 text-white rounded-full">切換完整介面</button>
             </div>
@@ -403,8 +403,8 @@ export default function App() {
       );
     }
     return (
-      <div className="w-full min-h-screen bg-gradient-to-b from-slate-50 to-indigo-50 px-1.5 py-2 animate-in fade-in duration-700 overflow-x-hidden" style={{maxWidth: '100vw', overflowX: 'hidden'}}>
-        <header className="text-center mb-2 relative max-w-full" style={{width: '100%', maxWidth: '100vw'}}>
+      <div className="w-full min-h-screen bg-gradient-to-b from-slate-50 to-indigo-50 px-1.5 py-2 animate-in fade-in duration-700 overflow-x-hidden">
+        <header className="text-center mb-2 relative w-full">
           <button onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))} className="absolute top-0 right-0 p-1 bg-white rounded-lg border shadow-sm hover:scale-105 transition-all group">
             <span className="text-sm">📊</span>
             <span className="text-[5px] font-black uppercase text-slate-400 group-hover:text-indigo-600 block mt-0.5">戰力分析</span>
@@ -419,9 +419,9 @@ export default function App() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-1 max-w-full px-0" style={{maxWidth: '100vw'}}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-1 w-full px-1">
           <div className="lg:col-span-2 space-y-1">
-            <section className="bg-slate-900 rounded-lg p-1.5 text-white shadow-4xl relative overflow-hidden group mx-1">
+            <section className="bg-slate-900 rounded-lg p-1.5 text-white shadow-4xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-1 text-indigo-500 opacity-10 text-lg font-black">⚖️</div>
               <h2 className="text-[9px] font-black mb-1 flex items-center">
                 <span className="w-0.5 h-0.5 rounded-full bg-indigo-500 mr-0.5"></span>
@@ -453,7 +453,7 @@ export default function App() {
               <button onClick={() => handleRetrieveQuestion(false)} disabled={bank.length === 0} className="w-full bg-slate-700 py-0.5 rounded-lg font-black text-[8px] border border-indigo-900/50 hover:bg-indigo-900 active:scale-95 disabled:opacity-50">查詢</button>
             </section>
 
-            <div className="space-y-1 mx-1">
+            <div className="space-y-1">
               <h2 className="text-[8px] font-black text-slate-900 uppercase border-b-2 border-slate-100 pb-0.5">全真模擬測驗</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
                 {Object.keys(Category).map(key => {
@@ -469,7 +469,7 @@ export default function App() {
             </div>
           </div>
 
-          <aside className="space-y-1 mx-1">
+          <aside className="space-y-1">
             <div className="bg-indigo-600 rounded-lg p-1.5 text-white shadow-3xl cursor-pointer hover:shadow-lg" onClick={() => setState(s => ({ ...s, status: 'DASHBOARD' }))}>
               <h3 className="text-[8px] font-black mb-0.5">數據總結</h3>
               <p className="text-indigo-100 font-bold text-[6px] mb-1">定位學習弱點</p>
@@ -487,28 +487,28 @@ export default function App() {
     const answered = !!state.answers[currentQ.id];
 
     return (
-      <div className="max-w-5xl mx-auto px-6 py-16 pb-48 animate-in fade-in duration-500">
-        <nav className="flex justify-between items-center mb-16">
-          <button onClick={handleExit} className="group flex items-center space-x-4 text-slate-900 font-black px-10 py-5 rounded-full bg-white border-2 border-slate-100 shadow-xl hover:text-rose-600 transition-all active:scale-95">
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-16 pb-24 sm:pb-48 animate-in fade-in duration-500">
+        <nav className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-0 mb-8 sm:mb-16">
+          <button onClick={handleExit} className="group flex items-center justify-center sm:justify-start space-x-2 sm:space-x-4 text-slate-900 font-black px-4 sm:px-10 py-3 sm:py-5 rounded-full bg-white border-2 border-slate-100 shadow-xl hover:text-rose-600 transition-all active:scale-95">
             <span className="text-2xl">✕</span>
-            <span className="text-xs tracking-widest">返回主畫面</span>
+            <span className="text-[11px] sm:text-xs tracking-widest">返回主畫面</span>
           </button>
-          <div className="px-10 py-5 rounded-full bg-slate-900 text-white font-black text-xs uppercase tracking-widest shadow-2xl">
+          <div className="px-4 sm:px-10 py-3 sm:py-5 rounded-full bg-slate-900 text-white font-black text-[11px] sm:text-xs uppercase tracking-widest shadow-2xl text-center">
             {state.currentIndex + 1} / {state.questions.length}
           </div>
         </nav>
 
-        <article className="bg-white rounded-[6rem] p-20 shadow-4xl border-2 border-slate-50 relative mb-16 overflow-hidden">
-          <div className="absolute top-0 left-0 px-16 py-8 bg-slate-900 text-white font-black rounded-br-[4rem] text-sm tracking-widest uppercase shadow-2xl">
+        <article className="bg-white rounded-[2rem] sm:rounded-[6rem] p-4 sm:p-20 shadow-4xl border-2 border-slate-50 relative mb-10 sm:mb-16 overflow-hidden">
+          <div className="absolute top-0 left-0 px-4 sm:px-16 py-2 sm:py-8 bg-slate-900 text-white font-black rounded-br-[2rem] sm:rounded-br-[4rem] text-[10px] sm:text-sm tracking-wide sm:tracking-widest uppercase shadow-2xl">
             真題：民國 {currentQ.year} 年度 第 {currentQ.question_no} 題
           </div>
 
-          <div className="mt-24 mb-12 flex items-center space-x-6">
-            <div className="h-1 w-12 bg-indigo-600 rounded-full"></div>
-            <span className="text-indigo-600 font-black uppercase tracking-widest">{currentQ.subject} (代碼: {currentQ.subject_code})</span>
+          <div className="mt-16 sm:mt-24 mb-6 sm:mb-12 flex items-center space-x-3 sm:space-x-6">
+            <div className="h-1 w-8 sm:w-12 bg-indigo-600 rounded-full"></div>
+            <span className="text-indigo-600 font-black text-xs sm:text-base uppercase tracking-wide sm:tracking-widest">{currentQ.subject} (代碼: {currentQ.subject_code})</span>
           </div>
 
-          <h2 className="text-xl sm:text-2xl md:text-4xl text-slate-800 font-bold leading-[1.8] mb-20 tracking-tight">{currentQ.content}</h2>
+          <h2 className="text-base sm:text-2xl md:text-4xl text-slate-800 font-bold leading-[1.8] mb-8 sm:mb-20 tracking-tight">{currentQ.content}</h2>
           
           <div className="grid gap-4 sm:gap-6 md:gap-8">
             {currentQ.options.map((opt) => {
@@ -557,7 +557,7 @@ export default function App() {
         </article>
 
         {answered && (
-          <section className="space-y-8 animate-in slide-in-from-bottom-10 duration-700">
+          <section className="space-y-6 sm:space-y-8 animate-in slide-in-from-bottom-10 duration-700">
             <MemoSection 
               questionId={currentQ.id} 
               memos={state.memos} 
@@ -565,7 +565,7 @@ export default function App() {
             />
             <button 
               onClick={nextQuestion} 
-              className="w-full bg-slate-900 text-white py-14 rounded-[5rem] font-black text-5xl hover:bg-indigo-600 transition-all shadow-5xl active:scale-[0.98] tracking-widest uppercase"
+              className="w-full bg-slate-900 text-white py-5 sm:py-14 rounded-[2rem] sm:rounded-[5rem] font-black text-base sm:text-5xl hover:bg-indigo-600 transition-all shadow-5xl active:scale-[0.98] tracking-widest uppercase"
             >
               {state.currentIndex < state.questions.length - 1 ? '下一題任務 →' : '產出戰略總結'}
             </button>
