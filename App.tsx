@@ -37,7 +37,7 @@ export default function App() {
   useEffect(() => {
     const loadBankFromPublic = async () => {
       try {
-        const base = import.meta.env.BASE_URL || "/";
+        const base = ((import.meta as any).env?.BASE_URL as string) || "/";
         const manifestUrl = `${base}bank/manifest.json`;
 
         console.log("[bank] Loading manifest from:", manifestUrl);
@@ -69,9 +69,10 @@ export default function App() {
         );
 
         // 處理可能是陣列或物件的情況，以及 Promise 結果
-        const results = all
-          .filter((p) => p.status === 'fulfilled')
-          .map((p) => (p as PromiseSettledResult<any>).value);
+        const fulfilledResults = all.filter(
+          (p): p is PromiseFulfilledResult<any> => p.status === 'fulfilled'
+        );
+        const results = fulfilledResults.map((p) => p.value);
         
         const flattened = results.flatMap((x: any) => Array.isArray(x) ? x : [x]);
 
